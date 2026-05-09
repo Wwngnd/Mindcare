@@ -60,3 +60,13 @@ export const loginSchema = Joi.object({
             "any.required": "Password wajib diisi."
         })
 });
+
+export const updateProfileSchema = Joi.object({
+    name: Joi.string().min(2).max(255).optional().allow(null).messages({
+        "string.empty": "Nama tidak boleh kosong.",
+        "string.min": "Nama minimal 2 karakter."
+    }),
+    avatar: Joi.number().integer().optional().allow(null).messages({
+        "number.base": "Avatar harus berupa angka."
+    })
+});

@@ -11,8 +11,10 @@ const app = express();
 const PORT = process.env.PORT || 9000;
 const HOST = process.env.HOST || "localhost";
 
-app.use(cookieParser());
+app.use(cors({ credentials: true, origin: process.env.ALLOWED_ORIGINS }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 try {
     await db.authenticate();
@@ -21,9 +23,8 @@ try {
     console.error("Unable to connect to the database:", error);
 }
 
-app.use(cors({ credentials: true, origin: process.env.ALLOWED_ORIGINS }));
-app.use("/api",router);
+app.use("/api", router);
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://${HOST}:${PORT}`);
-}); 
+});

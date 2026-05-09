@@ -1,0 +1,153 @@
+import db from "../config/Database.js";
+import { QueryTypes } from "sequelize";
+import response from "../utils/response.js";
+
+const kuesionerController = {
+    async createKuesioner(req, res, next) {
+        const {
+            umur,
+            pekerjaan,
+            tingkat_stres,
+            durasi_stres,
+            penyebab_stres,
+            kualitas_tidur,
+            waktu_luang,
+            mood,
+            aktivitas_fisik,
+            preferensi_olahraga,
+            preferensi_membaca,
+            preferensi_journaling
+        } = req.body;
+
+        try {
+            const [result] = await db.query(
+                `INSERT INTO tb_kuesioner_hasil (
+                    user_id, umur, pekerjaan, tingkat_stres, durasi_stres,
+                    penyebab_stres, kualitas_tidur, waktu_luang, mood,
+                    aktivitas_fisik, preferensi_olahraga, preferensi_membaca,
+                    preferensi_journaling
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                {
+                    replacements: [
+                        req.userId, umur, pekerjaan, tingkat_stres, durasi_stres,
+                        penyebab_stres, kualitas_tidur, waktu_luang, mood,
+                        aktivitas_fisik, preferensi_olahraga, preferensi_membaca,
+                        preferensi_journaling
+                    ],
+                    type: QueryTypes.INSERT
+                }
+            );
+
+            const [newKuesioner] = await db.query(
+                "SELECT * FROM tb_kuesioner_hasil WHERE id = ?",
+                {
+                    replacements: [result],
+                    type: QueryTypes.SELECT
+                }
+            );
+
+            return response.success(res, 201, "Kuesioner berhasil disimpan.", newKuesioner);
+
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    async getAllKuesionerByUserLogin(req, res, next) {
+        try {
+            const kuesioner = await db.query(
+                "SELECT * FROM tb_kuesioner_hasil WHERE user_id = ? ORDER BY createdAt DESC",
+                {
+                    replacements: [req.userId],
+                    type: QueryTypes.SELECT
+                }
+            );
+
+            if (!kuesioner.length) {
+                return response.failed(res, 404, "Belum ada data kuesioner.");
+            }
+
+            return response.success(res, 200, "Data kuesioner berhasil diambil.", { kuesioner });
+
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    async getAllKuesioner(req, res, next) {
+    try {
+        const kuesioner = await db.query(
+            `SELECT tb_kuesioner_hasil.*, tb_users.name, tb_users.email 
+             FROM tb_kuesioner_hasil 
+             JOIN tb_users ON tb_kuesioner_hasil.user_id = tb_users.id 
+             ORDER BY tb_kuesioner_hasil.createdAt DESC`,
+            { type: QueryTypes.SELECT }
+        );
+
+        if (!kuesioner.length) {
+            return response.failed(res, 404, "Belum ada data kuesioner.");
+        }
+
+        return response.success(res, 200, "Data semua kuesioner berhasil diambil.", { kuesioner });
+
+    } catch (error) {
+        next(error);
+    }
+},
+
+    async getKuesionerById(req, res, next) {
+        const { id } = req.params;
+
+        try {
+            const [kuesioner] = await db.query(
+                "SELECT * FROM tb_kuesioner_hasil WHERE id = ? AND user_id = ? LIMIT 1",
+                {
+                    replacements: [id, req.userId],
+                    type: QueryTypes.SELECT
+                }
+            );
+
+            if (!kuesioner) {
+                return response.failed(res, 404, "Data kuesioner tidak ditemukan.");
+            }
+
+            return response.success(res, 200, "Detail kuesioner berhasil diambil.", kuesioner);
+
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    async deleteKuesioner(req, res, next) {
+        const { id } = req.params;
+
+        try {
+            const [kuesioner] = await db.query(
+                "SELECT id FROM tb_kuesioner_hasil WHERE id = ? AND user_id = ? LIMIT 1",
+                {
+                    replacements: [id, req.userId],
+                    type: QueryTypes.SELECT
+                }
+            );
+
+            if (!kuesioner) {
+                return response.failed(res, 404, "Data kuesioner tidak ditemukan.");
+            }
+
+            await db.query(
+                "DELETE FROM tb_kuesioner_hasil WHERE id = ?",
+                {
+                    replacements: [id],
+                    type: QueryTypes.DELETE
+                }
+            );
+
+            return response.success(res, 200, "Data kuesioner berhasil dihapus.");
+
+        } catch (error) {
+            next(error);
+        }
+    }
+};
+
+export default kuesionerController;

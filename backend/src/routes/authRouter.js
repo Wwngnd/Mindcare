@@ -3,16 +3,21 @@ import { loginSchema, registerSchema } from "../validations/authValidation.js";
 import authController from "../controllers/authController.js";
 import { validate } from "../middleware/validate.js";
 import verifyToken from "../middleware/VerifyToken.js";
+import verifyAdmin from "../middleware/verifyAdmin.js";
 
-const authRouter = Router();
+const authRoute = Router();
 
-authRouter.get("/refreshToken", authController.RefreshToken);
-authRouter.get("/user", verifyToken, authController.getUserByToken); 
+//endpoint for public
+authRoute.post("/login", validate(loginSchema), authController.Login);
+authRoute.get("/token", authController.RefreshToken);
+authRoute.delete('/logout', verifyToken, authController.Logout);
 
-authRouter.post('/register', validate(registerSchema), authController.Register);
-authRouter.post("/login", validate(loginSchema), authController.Login);
+//endpoint for login user
+authRoute.get("/me", verifyToken, authController.getUserByToken);
 
-authRouter.delete('/logout', validate(registerSchema), authController.Logout);
+//endpoint admin only
+authRoute.get("/users", verifyToken, verifyAdmin, authController.getAllUsers)
+authRoute.get("/users/:id", verifyToken, verifyAdmin, authController.getUserById);
+authRoute.delete("/users/:id", verifyToken, verifyAdmin, authController.deleteUser);
 
-
-export default authRouter;
+export default authRoute;
