@@ -9,5 +9,23 @@ export const journalSchema = Joi.object({
     deskripsi: Joi.string().required().messages({
         "string.empty": "Isi journal tidak boleh kosong.",
         "any.required": "Isi journal wajib diisi."
+    }),
+    durasi: Joi.number().required().messages({
+        "number.empty": "Durasi tidak boleh kosong.",
+        "number.base": "Durasi harus berupa angka.",
+        "any.required": "Durasi wajib diisi."
+    })
+});
+
+export const updateJournalSchema = Joi.object({
+    judul: Joi.string().max(255).messages({
+        "string.empty": "Judul tidak boleh kosong.",
+        "string.max": "Judul maksimal 255 karakter."
+    }),
+    deskripsi: Joi.string().messages({
+        "string.empty": "Isi journal tidak boleh kosong."
+    }),
+    durasi: Joi.number().messages({
+        "number.base": "Durasi harus berupa angka."
     })
 });

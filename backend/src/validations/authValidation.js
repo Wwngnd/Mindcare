@@ -40,7 +40,27 @@ export const registerSchema = Joi.object({
         .messages({
             "any.only": "Password dan confirm password tidak cocok.",
             "any.required": "Confirm password wajib diisi."
-        })
+        }),
+
+    jenis_kelamin: Joi.string()
+        .valid("laki-laki", "perempuan")
+        .required()
+        .messages({
+            "any.only": "Jenis kelamin hanya boleh: laki-laki atau perempuan.",
+            "any.required": "Jenis kelamin wajib diisi."
+        }),
+
+    avatar: Joi.string()
+        .max(255)
+        .optional()
+        .allow(null, "")
+        .messages({
+            "string.max": "Avatar maksimal 255 karakter."
+        }),
+
+    role: Joi.string().valid("user", "admin").default("user").messages({
+        "any.only": "Hanya ada admin dan user"
+    })
 });
 
 export const loginSchema = Joi.object({

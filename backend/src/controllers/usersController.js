@@ -5,7 +5,7 @@ import { QueryTypes } from "sequelize";
 
 const usersController = {
     async Register(req, res, next) {
-        const { name, email, password, confPassword, role = "user" } = req.body;
+        const { name, email, password, confPassword, avatar, jenis_kelamin, role } = req.body;
 
         try {
             if (!name || !email || !password || !confPassword) {

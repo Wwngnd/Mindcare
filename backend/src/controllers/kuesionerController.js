@@ -2,6 +2,8 @@ import db from "../config/Database.js";
 import { QueryTypes } from "sequelize";
 import response from "../utils/response.js";
 import { getAIRecommendation } from "../helper/predictionHelper.js";
+import { getBookCover } from "../utils/bookCover.js";
+import { searchBookMetadata } from "../utils/bookSearch.js";
 
 const kuesionerController = {
     async createKuesioner(req, res, next) {
@@ -21,7 +23,6 @@ const kuesionerController = {
         } = req.body;
 
         try {
-            // 1. Simpan data kuesioner
             const [kuesionerId] = await db.query(
                 `INSERT INTO tb_kuesioner_hasil (
                     user_id, umur, pekerjaan, tingkat_stres, durasi_stres,
@@ -48,7 +49,6 @@ const kuesionerController = {
                 }
             );
 
-            // 2. Format input untuk AI
             const inputAI = {
                 "Umur": newKuesioner.umur,
                 "Pekerjaan": newKuesioner.pekerjaan,
@@ -65,10 +65,8 @@ const kuesionerController = {
                 }
             };
 
-            // 3. Kirim ke AI
             const hasilAI = await getAIRecommendation(inputAI);
 
-            // 4. Simpan sesi rekomendasi
             const [sesiId] = await db.query(
                 "INSERT INTO tb_rekomendasi_sesi (user_id, kuesioner_id, model_type, alasan) VALUES (?, ?, ?, ?)",
                 {
@@ -82,7 +80,6 @@ const kuesionerController = {
                 }
             );
 
-            // 5. Simpan rekomendasi utama
             const [aktivitasUtamaId] = await db.query(
                 "INSERT INTO tb_rekomendasi_aktivitas (sesi_id, is_utama, aktivitas, confidence, durasi, detail) VALUES (?, ?, ?, ?, ?, ?)",
                 {
@@ -98,20 +95,51 @@ const kuesionerController = {
                 }
             );
 
-            // 6. Simpan buku jika rekomendasi utama = membaca
+            const enrichedBukuUtama = [];
+
             if (hasilAI.rekomendasi_utama.aktivitas === "membaca" && hasilAI.rekomendasi_utama.rekomendasi_buku?.length > 0) {
                 for (const buku of hasilAI.rekomendasi_utama.rekomendasi_buku) {
-                    await db.query(
-                        "INSERT INTO tb_rekomendasi_buku (aktivitas_id, judul, penulis, kategori, thumbnail, deskripsi) VALUES (?, ?, ?, ?, ?, ?)",
-                        {
-                            replacements: [aktivitasUtamaId, buku.judul, buku.penulis, buku.kategori, buku.thumbnail ?? null, buku.deskripsi ?? null],
-                            type: QueryTypes.INSERT
-                        }
-                    );
+                    try {
+                        const metadata = await searchBookMetadata(buku.judul, buku.penulis);
+
+                        const thumbnail =
+                            metadata?.thumbnail ??
+                            (metadata?.isbn ? getBookCover(metadata.isbn) : null) ??
+                            "https://via.placeholder.com/300x450?text=No+Cover";
+
+                        const deskripsi = metadata?.description ?? buku.deskripsi ?? null;
+
+                        await db.query(
+                            `INSERT INTO tb_rekomendasi_buku
+                (aktivitas_id, judul, penulis, kategori, thumbnail, deskripsi)
+                VALUES (?, ?, ?, ?, ?, ?)`,
+                            {
+                                replacements: [
+                                    aktivitasUtamaId,
+                                    buku.judul,
+                                    buku.penulis,
+                                    buku.kategori,
+                                    thumbnail,
+                                    deskripsi
+                                ],
+                                type: QueryTypes.INSERT
+                            }
+                        );
+
+                        enrichedBukuUtama.push({
+                            ...buku,
+                            thumbnail,
+                            deskripsi
+                        });
+
+                    } catch (err) {
+                        console.error(`[ERROR] Gagal simpan buku "${buku.judul}":`, err.message);
+                    }
                 }
             }
 
-            // 7. Simpan alternatif
+            const enrichedAlternatif = [];
+
             for (const alt of hasilAI.alternatif) {
                 const [altId] = await db.query(
                     "INSERT INTO tb_rekomendasi_aktivitas (sesi_id, is_utama, aktivitas, confidence, durasi, detail) VALUES (?, ?, ?, ?, ?, ?)",
@@ -121,20 +149,46 @@ const kuesionerController = {
                     }
                 );
 
+                const enrichedBukuAlt = [];
+
                 if (alt.aktivitas === "membaca" && alt.rekomendasi_buku?.length > 0) {
                     for (const buku of alt.rekomendasi_buku) {
-                        await db.query(
-                            "INSERT INTO tb_rekomendasi_buku (aktivitas_id, judul, penulis, kategori, thumbnail, deskripsi) VALUES (?, ?, ?, ?, ?, ?)",
-                            {
-                                replacements: [altId, buku.judul, buku.penulis, buku.kategori, buku.thumbnail ?? null, buku.deskripsi ?? null],
-                                type: QueryTypes.INSERT
-                            }
-                        );
+                        try {
+                            const metadata = await searchBookMetadata(buku.judul, buku.penulis);
+
+                            const thumbnail =
+                                metadata?.thumbnail ??
+                                (metadata?.isbn ? getBookCover(metadata.isbn) : null) ??
+                                "https://via.placeholder.com/300x450?text=No+Cover";
+
+                            const deskripsi = metadata?.description ?? buku.deskripsi ?? null;
+
+                            await db.query(
+                                "INSERT INTO tb_rekomendasi_buku (aktivitas_id, judul, penulis, kategori, thumbnail, deskripsi) VALUES (?, ?, ?, ?, ?, ?)",
+                                {
+                                    replacements: [altId, buku.judul, buku.penulis, buku.kategori, thumbnail, deskripsi],
+                                    type: QueryTypes.INSERT
+                                }
+                            );
+
+                            enrichedBukuAlt.push({
+                                ...buku,
+                                thumbnail,
+                                deskripsi
+                            });
+
+                        } catch (err) {
+                            console.error(`[ERROR] Gagal simpan buku alt "${buku.judul}":`, err.message);
+                        }
                     }
                 }
+
+                enrichedAlternatif.push({
+                    ...alt,
+                    rekomendasi_buku: enrichedBukuAlt
+                });
             }
 
-            // 8. Simpan distribusi probabilitas
             for (const [aktivitas, probabilitas] of Object.entries(hasilAI.insight.distribusi_probabilitas)) {
                 await db.query(
                     "INSERT INTO tb_rekomendasi_distribusi (sesi_id, aktivitas, probabilitas) VALUES (?, ?, ?)",
@@ -145,12 +199,16 @@ const kuesionerController = {
                 );
             }
 
-            // 9. Return semua hasil sekaligus
             return response.success(res, 201, "Kuesioner berhasil disimpan dan rekomendasi berhasil dibuat.", {
                 kuesioner: newKuesioner,
                 rekomendasi: {
                     sesi_id: sesiId,
-                    ...hasilAI
+                    rekomendasi_utama: {
+                        ...hasilAI.rekomendasi_utama,
+                        rekomendasi_buku: enrichedBukuUtama
+                    },
+                    alternatif: enrichedAlternatif,
+                    insight: hasilAI.insight
                 }
             });
 
@@ -159,7 +217,6 @@ const kuesionerController = {
         }
     },
 
-    // ... sisa method tidak berubah
     async getAllKuesionerByUserLogin(req, res, next) {
         try {
             const kuesioner = await db.query(

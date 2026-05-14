@@ -4,19 +4,19 @@ import response from "../utils/response.js";
 
 const journalController = {
     async createJournal(req, res, next) {
-        const { judul, deskripsi } = req.body;
+        const { judul, deskripsi, durasi } = req.body;
 
         try {
             const [result] = await db.query(
-                "INSERT INTO tb_journal (user_id, judul, deskripsi) VALUES (?, ?, ?)",
+                "INSERT INTO tb_journal (user_id, judul, deskripsi, durasi) VALUES (?, ?, ?, ?)",
                 {
-                    replacements: [req.userId, judul, deskripsi],
+                    replacements: [req.userId, judul, deskripsi, durasi],
                     type: QueryTypes.INSERT
                 }
             );
 
             const [newJournal] = await db.query(
-                "SELECT id, user_id, judul, deskripsi, createdAt FROM tb_journal WHERE id = ?",
+                "SELECT id, user_id, judul, deskripsi, durasi, createdAt FROM tb_journal WHERE id = ?",
                 {
                     replacements: [result],
                     type: QueryTypes.SELECT
@@ -25,7 +25,7 @@ const journalController = {
             const data = {
                 id: newJournal.id,
                 user_id: newJournal.user_id,
-                journal: { judul: newJournal.judul, deskripsi: newJournal.deskripsi }
+                journal: { judul: newJournal.judul, deskripsi: newJournal.deskripsi, durasi: newJournal.durasi }
             }
 
             return response.success(res, 201, "Journal berhasil dibuat.", data);
@@ -37,7 +37,7 @@ const journalController = {
     async getAllJournalByUserLogin(req, res, next) {
         try {
             const journals = await db.query(
-                "SELECT id, judul, deskripsi, createdAt, updatedAt FROM tb_journal WHERE user_id = ? ORDER BY createdAt DESC",
+                "SELECT id, judul, deskripsi, durasi, createdAt, updatedAt FROM tb_journal WHERE user_id = ? ORDER BY createdAt DESC",
                 {
                     replacements: [req.userId],
                     type: QueryTypes.SELECT
@@ -57,7 +57,7 @@ const journalController = {
     async getAllJournal(req, res, next) {
         try {
             const journals = await db.query(
-                "SELECT id, judul, deskripsi, createdAt, updatedAt FROM tb_journal ORDER BY createdAt DESC",
+                "SELECT id, judul, deskripsi, durasi, createdAt, updatedAt FROM tb_journal ORDER BY createdAt DESC",
                 {
                     replacements: [req.userId],
                     type: QueryTypes.SELECT
@@ -79,7 +79,7 @@ const journalController = {
 
         try {
             const [journal] = await db.query(
-                "SELECT id, judul, deskripsi, createdAt, updatedAt FROM tb_journal WHERE id = ? AND user_id = ? LIMIT 1",
+                "SELECT id, judul, deskripsi, durasi, createdAt, updatedAt FROM tb_journal WHERE id = ? AND user_id = ? LIMIT 1",
                 {
                     replacements: [id, req.userId],
                     type: QueryTypes.SELECT
@@ -98,7 +98,7 @@ const journalController = {
     },
     async updateJournal(req, res, next) {
         const { id } = req.params;
-        const { judul, deskripsi } = req.body;
+        const { judul, deskripsi, durasi } = req.body;
 
         try {
             const [journal] = await db.query(
@@ -114,15 +114,15 @@ const journalController = {
             }
 
             await db.query(
-                "UPDATE tb_journal SET judul = ?, deskripsi = ? WHERE id = ?",
+                "UPDATE tb_journal SET judul = ?, deskripsi = ?, durasi = ? WHERE id = ?",
                 {
-                    replacements: [judul, deskripsi, id],
+                    replacements: [judul, deskripsi, durasi, id],
                     type: QueryTypes.UPDATE
                 }
             );
 
             const [updatedJournal] = await db.query(
-                "SELECT id, user_id, judul, deskripsi, createdAt, updatedAt FROM tb_journal WHERE id = ?",
+                "SELECT id, user_id, judul, deskripsi, durasi, createdAt, updatedAt FROM tb_journal WHERE id = ?",
                 {
                     replacements: [id],
                     type: QueryTypes.SELECT

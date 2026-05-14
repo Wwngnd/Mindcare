@@ -4,6 +4,8 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import db from "./config/Database.js";
 import router from "./routes/index.js";
+import response from "./utils/response.js";
+import errorHandler from "./exceptions/errorHandler.js";
 
 dotenv.config();
 
@@ -23,7 +25,12 @@ try {
     console.error("Unable to connect to the database:", error);
 }
 
+app.get("/", (req, res) => {
+    response(200, "server siap", null, res);
+})
+
 app.use("/api", router);
+app.use(errorHandler);
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://${HOST}:${PORT}`);
