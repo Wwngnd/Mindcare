@@ -3,7 +3,7 @@ tags:
     description: Autentikasi pengguna
 
 paths:
-  /auth/register:
+/users/register:
     post:
       tags: [Auth]
       summary: Register user baru
@@ -13,7 +13,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, email, password]
+              required: [name, email, password, confPassword, jenis_kelamin]
               properties:
                 name:
                   type: string
@@ -24,12 +24,22 @@ paths:
                 password:
                   type: string
                   example: password123
+                confPassword:
+                  type: string
+                  example: password123
+                jenis_kelamin:
+                  type: string
+                  enum: [laki-laki, perempuan]
+                  example: laki-laki
+                role:
+                  type: string
+                  enum: [admin, user]
+                  example: user
       responses:
         "201":
           description: Register berhasil
         "400":
           description: Data tidak valid
-
   /auth/login:
     post:
       tags: [Auth]
