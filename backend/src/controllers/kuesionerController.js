@@ -20,6 +20,38 @@ const kuesionerController = {
     },
 
     /**
+     * GET /kuesioner/rekomendasi
+     * Mengambil riwayat rekomendasi yang sudah tersimpan di database.
+     */
+    async getAllRekomendasiByUserLogin(req, res, next) {
+        try {
+            const rekomendasiHistory = await kuesionerServices.getAllStoredRekomendasiByUser(req.userId);
+            return response.success(res, 200, "Riwayat rekomendasi berhasil diambil.", {
+                rekomendasi: rekomendasiHistory.sesi,
+                rekomendasi_buku: rekomendasiHistory.rekomendasi_buku
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    /**
+     * GET /kuesioner/rekomendasi/:sesiId
+     * Mengambil detail hasil rekomendasi yang tersimpan berdasarkan sesi_id.
+     */
+    async getRekomendasiBySesiId(req, res, next) {
+        try {
+            const rekomendasi = await kuesionerServices.getStoredRekomendasiBySesi(
+                req.userId,
+                req.params.sesiId
+            );
+            return response.success(res, 200, "Detail rekomendasi berhasil diambil.", rekomendasi);
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    /**
      * GET /kuesioner/me
      * Mengambil semua kuesioner milik user yang sedang login.
      */

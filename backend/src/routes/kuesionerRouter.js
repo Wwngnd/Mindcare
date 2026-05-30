@@ -9,6 +9,8 @@ const kuesionerRouter = Router();
 
 //endpoint for user
 kuesionerRouter.post("/", verifyToken, validate(kuesionerSchema), kuesionerController.createKuesioner);
+kuesionerRouter.get("/rekomendasi", verifyToken, kuesionerController.getAllRekomendasiByUserLogin);
+kuesionerRouter.get("/rekomendasi/:sesiId", verifyToken, kuesionerController.getRekomendasiBySesiId);
 kuesionerRouter.get("/me", verifyToken, kuesionerController.getAllKuesionerByUserLogin);
 kuesionerRouter.delete("/:id", verifyToken, kuesionerController.deleteKuesioner);
 

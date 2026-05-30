@@ -3,7 +3,7 @@ tags:
     description: Autentikasi pengguna
 
 paths:
-/users/register:
+  /users/register:
     post:
       tags: [Auth]
       summary: Register user baru

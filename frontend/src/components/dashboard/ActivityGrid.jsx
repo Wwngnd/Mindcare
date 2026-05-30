@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { FiActivity, FiBookOpen, FiClipboard, FiEdit3, FiZap } from "react-icons/fi";
 
 const activities = [
@@ -40,16 +41,16 @@ const ActivityGrid = () => {
       </h3>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {activities.map(({ label, href, bg, iconBg, Icon }) => (
-          <a
+          <Link
             key={label}
-            href={href}
+            to={href}
             className={`rounded-xl border p-6 flex flex-col items-center justify-center gap-3 transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#1E293B] ${bg}`}
           >
             <div className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 border-[#1E293B] shadow-[4px_4px_0px_0px_#1E293B] ${iconBg}`}>
               <Icon size={20} />
             </div>
             <span className="text-center text-sm font-bold">{label}</span>
-          </a>
+          </Link>
         ))}
       </div>
     </section>

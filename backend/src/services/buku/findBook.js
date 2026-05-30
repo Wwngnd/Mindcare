@@ -4,7 +4,7 @@ import { fetchOpenLibraryDoc, OPEN_LIBRARY_COVER } from "../../providers/openLib
 
 const PLACEHOLDER_COVER = "https://via.placeholder.com/300x450?text=No+Cover";
 
-export const findBookThumbnail = async (judul, penulis) => {
+export const findBookThumbnail = async (judul, penulis, fallbackThumbnail = null) => {
     const result = await getGoogleBooksThumbnail(judul, penulis);
     if (result?.startsWith("http")) return result;       // thumbnail URL
     if (result) return getBookCover(result); // ISBN
@@ -17,7 +17,7 @@ export const findBookThumbnail = async (judul, penulis) => {
         console.log(`[WARN] Open Library search failed for ${judul}:`, error.message);
     }
 
-    return PLACEHOLDER_COVER;
+    return fallbackThumbnail?.replace?.("http://", "https://") || PLACEHOLDER_COVER;
 };
 
 export const findBookDescription = async (judul, penulis, defaultDesc = null) => {

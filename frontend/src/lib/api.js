@@ -3,7 +3,8 @@ import { readAppData, writeAppData } from "./storage";
 const DEFAULT_API_URL = "http://localhost:3000";
 
 function getApiBaseUrl() {
-  return (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, "");
+  const configuredUrl = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, "");
+  return configuredUrl.replace(/\/api$/i, "");
 }
 
 function getAccessToken() {
@@ -42,7 +43,9 @@ export async function apiRequest(path, options = {}) {
   const url = `${getApiBaseUrl()}${urlPath}`;
 
   const nextHeaders = { ...(headers ?? {}) };
-  if (body !== undefined && !("Content-Type" in nextHeaders)) {
+  const isFormData = body instanceof FormData;
+
+  if (body !== undefined && !isFormData && !("Content-Type" in nextHeaders)) {
     nextHeaders["Content-Type"] = "application/json";
   }
 
@@ -54,7 +57,7 @@ export async function apiRequest(path, options = {}) {
   const res = await fetch(url, {
     method,
     headers: nextHeaders,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: isFormData ? body : (body === undefined ? undefined : JSON.stringify(body)),
     credentials: "include",
   });
 
@@ -87,4 +90,69 @@ export async function apiRequest(path, options = {}) {
 export function clearAuth() {
   writeAppData("auth", null);
   writeAppData("user", null);
+}
+
+/**
+ * POST /api/stress-scan
+ * Upload gambar untuk deteksi stress
+ */
+export async function scanStress(data = {}) {
+  return apiRequest("/api/stress-scan", {
+    method: "POST",
+    body: data,
+  });
+}
+
+/**
+ * GET /api/stress-scan/me
+ * Ambil riwayat stress scan milik user
+ */
+export async function getMyStressScans() {
+  return apiRequest("/api/stress-scan/me");
+}
+
+/**
+ * GET /api/stress-scan/:id
+ * Detail hasil scan berdasarkan ID
+ */
+export async function getStressScanById(id) {
+  return apiRequest(`/api/stress-scan/${id}`);
+}
+
+/**
+ * DELETE /api/stress-scan/:id
+ * Hapus riwayat scan
+ */
+export async function deleteStressScan(id) {
+  return apiRequest(`/api/stress-scan/${id}`, { method: "DELETE" });
+}
+
+/**
+ * GET /api/stress-scan (Admin only)
+ */
+export async function getAllStressScans() {
+  return apiRequest("/api/stress-scan");
+}
+
+/**
+ * Olahraga (Exercise) API
+ */
+
+export async function createOlahraga(data) {
+  return apiRequest("/api/olahraga", {
+    method: "POST",
+    body: data,
+  });
+}
+
+export async function getMyOlahraga() {
+  return apiRequest("/api/olahraga/me");
+}
+
+export async function getOlahragaStatistik() {
+  return apiRequest("/api/olahraga/statistik");
+}
+
+export async function getOlahragaStatistikPerJenis() {
+  return apiRequest("/api/olahraga/statistik-per-jenis");
 }

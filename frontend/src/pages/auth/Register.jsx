@@ -7,12 +7,11 @@ import AuthLogo from "../../components/auth/AuthLogo";
 import RegisterNavigation from "../../components/auth/register/RegisterNavigation";
 import RegisterStep1Account from "../../components/auth/register/RegisterStep1Account";
 import RegisterStep2Biodata from "../../components/auth/register/RegisterStep2Biodata";
-import RegisterStep3Questionnaire from "../../components/auth/register/RegisterStep3Questionnaire";
-import RegisterStep4Success from "../../components/auth/register/RegisterStep4Success";
-import registerQuestions from "../../data/registerQuestions";
 import { apiRequest } from "../../lib/api";
+import { writeAppData } from "../../lib/storage";
 
-const totalSteps = 4;
+const totalSteps = 2;
+const allowedJobs = ["mahasiswa", "pelajar", "karyawan", "wirausaha"];
 
 const calculatePasswordStrength = (value) => {
   let score = 0;
@@ -23,45 +22,28 @@ const calculatePasswordStrength = (value) => {
   return score;
 };
 
-const calculateBaselineScore = (answers) => {
-  const v = (i) => Number(answers[i - 1] ?? 3);
-  const scoreSleep = (ans) => [1, 2, 5, 4, 2][ans - 1];
-
-  const scores = {
-    stres: 6 - v(3),
-    tidur: scoreSleep(v(6)),
-    fokus: v(7),
-    cemas: 6 - v(5),
-    mood: Math.round((v(8) + v(9) + v(10)) / 3),
-  };
-
-  const total = Object.values(scores).reduce((acc, item) => acc + item, 0);
-  const overall = Math.round((total / 25) * 100);
-  return { scores, overall };
-};
-
 const Register = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
-  const [quizIndex, setQuizIndex] = useState(0);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showOfferModal, setShowOfferModal] = useState(false);
   const [accountForm, setAccountForm] = useState({
     email: "",
     password: "",
     confirmPassword: "",
   });
   const [bioForm, setBioForm] = useState({
-    nama: "",
-    gender: "",
+    name: "",
+    umur: "",
     pekerjaan: "",
+    gender: "",
   });
-  const [answers, setAnswers] = useState(new Array(registerQuestions.length).fill(null));
 
   const passwordStrength = useMemo(
     () => calculatePasswordStrength(accountForm.password),
     [accountForm.password],
   );
-  const scoreData = useMemo(() => calculateBaselineScore(answers), [answers]);
 
   const handleAccountChange = (event) => {
     setError("");
@@ -75,33 +57,10 @@ const Register = () => {
     setBioForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const setQuizChoiceAnswer = (value) => {
-    setError("");
-    setAnswers((prev) => {
-      const next = [...prev];
-      next[quizIndex] = Number(value);
-      return next;
-    });
-  };
-
-  const setQuizNumberAnswer = (value) => {
-    setError("");
-    const num = Number(value);
-    setAnswers((prev) => {
-      const next = [...prev];
-      if (Number.isNaN(num)) {
-        next[quizIndex] = null;
-      } else {
-        const question = registerQuestions[quizIndex];
-        next[quizIndex] = Math.min(question.max, Math.max(question.min, num));
-      }
-      return next;
-    });
-  };
-
   const validateStep1 = () => {
     if (!accountForm.email) return "Email harus diisi!";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountForm.email)) return "Format email tidak valid!";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(accountForm.email)) return "Format email tidak valid!";
     if (!accountForm.password) return "Password harus diisi!";
     if (accountForm.password.length < 8) return "Password minimal 8 karakter!";
     if (accountForm.password !== accountForm.confirmPassword) return "Password dan konfirmasi tidak cocok!";
@@ -109,19 +68,38 @@ const Register = () => {
   };
 
   const validateStep2 = () => {
-    if (!bioForm.nama) return "Nama harus diisi!";
-    if (!bioForm.gender) return "Pilih gender!";
-    if (!bioForm.pekerjaan) return "Pilih pekerjaan!";
+    if (!bioForm.name) return "Nama lengkap harus diisi!";
+    if (bioForm.name.length < 2) return "Nama minimal 2 karakter!";
+    if (!bioForm.umur) return "Umur harus diisi!";
+    const umur = Number(bioForm.umur);
+    if (!Number.isInteger(umur) || umur < 1 || umur > 120) return "Umur harus berupa angka 1 sampai 120!";
+    if (!bioForm.pekerjaan) return "Pekerjaan harus diisi!";
+    if (!allowedJobs.includes(bioForm.pekerjaan)) return "Pilih pekerjaan yang tersedia!";
+    if (!bioForm.gender) return "Pilih jenis kelamin!";
     return "";
   };
 
-  const validateAllQuizAnswers = () => {
-    const emptyIdx = answers.findIndex((item) => item === null);
-    if (emptyIdx !== -1) {
-      setQuizIndex(emptyIdx);
-      return `Jawab pertanyaan ${emptyIdx + 1} terlebih dahulu!`;
-    }
-    return "";
+  // Auto-login setelah register berhasil, simpan token ke storage
+  const autoLogin = async (email, password) => {
+    const loginRes = await apiRequest("/api/auth/login", {
+      method: "POST",
+      auth: false,
+      body: { email, password },
+    });
+
+    const accessToken = loginRes?.payload?.token?.accessToken ?? null;
+    const user = {
+      id: loginRes?.payload?.id ?? null,
+      name: loginRes?.payload?.name ?? "",
+      email: loginRes?.payload?.email ?? "",
+      avatar: loginRes?.payload?.avatar ?? "",
+      jenis_kelamin: loginRes?.payload?.jenis_kelamin ?? "",
+      umur: loginRes?.payload?.umur ?? "",
+      pekerjaan: loginRes?.payload?.pekerjaan ?? "",
+    };
+
+    if (accessToken) writeAppData("auth", { accessToken });
+    writeAppData("user", user);
   };
 
   const handleNext = () => {
@@ -136,56 +114,39 @@ const Register = () => {
     if (currentStep === 2) {
       const message = validateStep2();
       if (message) return setError(message);
-      setCurrentStep(3);
-      return;
-    }
 
-    if (currentStep === 3) {
-      if (answers[quizIndex] === null) {
-        setError(`Jawab pertanyaan ${quizIndex + 1} terlebih dahulu!`);
-        return;
-      }
-      if (quizIndex < registerQuestions.length - 1) {
-        setQuizIndex((prev) => prev + 1);
-        return;
-      }
-      const message = validateAllQuizAnswers();
-      if (message) return setError(message);
       const payload = {
-        name: bioForm.nama,
+        name: bioForm.name,
         email: accountForm.email,
         password: accountForm.password,
         confPassword: accountForm.confirmPassword,
+        jenis_kelamin: bioForm.gender,
+        umur: Number(bioForm.umur),
+        pekerjaan: bioForm.pekerjaan,
       };
 
+      setLoading(true);
       apiRequest("/api/users/register", {
         method: "POST",
         auth: false,
         body: payload,
       })
+        .then(() => autoLogin(accountForm.email, accountForm.password))
         .then(() => {
-          setCurrentStep(4);
+          setShowOfferModal(true);
         })
         .catch((err) => {
           setError(err?.message || "Registrasi gagal.");
-        });
+        })
+        .finally(() => setLoading(false));
       return;
     }
-
-    navigate("/");
   };
 
   const handleBack = () => {
     setError("");
-    if (currentStep === 3 && quizIndex > 0) {
-      setQuizIndex((prev) => prev - 1);
-      return;
-    }
     if (currentStep > 1) setCurrentStep((prev) => prev - 1);
   };
-
-  const currentQuestion = registerQuestions[quizIndex];
-  const isQuizLastQuestion = quizIndex === registerQuestions.length - 1;
 
   return (
     <div className="min-h-screen bg-[#FFFDF5] px-4 py-4 md:py-6 flex items-center justify-center">
@@ -204,25 +165,13 @@ const Register = () => {
 
           {currentStep === 2 ? <RegisterStep2Biodata form={bioForm} onChange={handleBioChange} /> : null}
 
-          {currentStep === 3 ? (
-            <RegisterStep3Questionnaire
-              question={currentQuestion}
-              questionIndex={quizIndex}
-              totalQuestions={registerQuestions.length}
-              answer={answers[quizIndex]}
-              onChoiceChange={setQuizChoiceAnswer}
-              onNumberChange={setQuizNumberAnswer}
-            />
-          ) : null}
-
-          {currentStep === 4 ? <RegisterStep4Success scoreData={scoreData} /> : null}
-
           <RegisterNavigation
             currentStep={currentStep}
             totalSteps={totalSteps}
-            isQuizLastQuestion={isQuizLastQuestion}
+            isQuizLastQuestion={false}
             onBack={handleBack}
             onNext={handleNext}
+            loading={loading}
           />
         </AuthCard>
 
@@ -238,6 +187,39 @@ const Register = () => {
           </p>
         </div>
       </div>
+
+      {showOfferModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="relative w-full max-w-sm rounded-[32px] border-4 border-[#1E293B] bg-white p-8 shadow-[8px_8px_0px_0px_#1E293B]">
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#8B5CF6]/10 text-3xl">
+                ✨
+              </div>
+              <h2 className="mb-2 text-2xl font-extrabold text-[#1E293B]">Registrasi Berhasil!</h2>
+              <p className="mb-6 text-sm font-medium text-[#64748B]">
+                Mau coba fitur Cek Stress sekarang untuk mendapatkan rekomendasi aktivitas yang pas buat kamu?
+              </p>
+
+              <div className="space-y-3">
+                <button
+                  id="btn-cek-stress"
+                  onClick={() => navigate("/stress-check")}
+                  className="w-full rounded-2xl border-2 border-[#1E293B] bg-[#8B5CF6] py-3 font-bold text-white shadow-[4px_4px_0px_0px_#1E293B] transition-all hover:-translate-y-0.5"
+                >
+                  Ya, Cek Sekarang
+                </button>
+                <button
+                  id="btn-ke-dashboard"
+                  onClick={() => navigate("/dashboard")}
+                  className="w-full rounded-2xl border-2 border-[#1E293B] bg-white py-3 font-bold text-[#1E293B] transition-all hover:bg-slate-50"
+                >
+                  Nanti Saja
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

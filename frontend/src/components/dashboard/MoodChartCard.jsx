@@ -1,14 +1,14 @@
 import { FiBarChart2 } from "react-icons/fi";
 
-const moodValues = { happy: 5, surprised: 4, neutral: 3, sad: 2, angry: 1 };
+const moodValuesMap = { angry: 1, sad: 2, neutral: 3, happy: 5 };
+const moodMapping = { 0: "angry", 1: "sad", 2: "neutral", 3: "neutral", 4: "happy", 5: "happy" };
 const moodColors = {
   happy: "#34D399",
-  surprised: "#FBBF24",
   neutral: "#8B5CF6",
   sad: "#F472B6",
   angry: "#EF4444",
 };
-const moodEmoji = ["", "😠", "😢", "😐", "😲", "😊"];
+const moodEmoji = ["", "😠", "😢", "😐", "😊", "😊"];
 
 const MoodChartCard = ({ moods }) => {
   const rows = [];
@@ -16,12 +16,24 @@ const MoodChartCard = ({ moods }) => {
     const date = new Date();
     date.setDate(date.getDate() - i);
     const dayLabel = date.toLocaleDateString("id-ID", { weekday: "short" });
-    const found = moods.find((item) => new Date(item.date).toDateString() === date.toDateString());
-    const value = found ? moodValues[found.mood] || 3 : 0;
+    const found = moods.find((item) => 
+      new Date(item.createdAt || item.date).toDateString() === date.toDateString()
+    );
+    
+    let moodKey = "neutral";
+    if (found) {
+        if (typeof found.mood === 'number') {
+            moodKey = moodMapping[found.mood] || "neutral";
+        } else {
+            moodKey = found.mood;
+        }
+    }
+    
+    const value = found ? moodValuesMap[moodKey] || 3 : 0;
     rows.push({
       dayLabel,
       value,
-      color: found ? moodColors[found.mood] || "#8B5CF6" : "#E2E8F0",
+      color: found ? moodColors[moodKey] || "#8B5CF6" : "#E2E8F0",
     });
   }
 

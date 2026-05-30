@@ -1,6 +1,14 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { apiRequest, clearAuth } from "../../lib/api";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { readAppData } from "../../lib/storage";
+
+const apiBaseUrl = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace(/\/+$/, "").replace(/\/api$/i, "");
+
+const getAvatarSrc = (avatar) => {
+  if (!avatar) return "";
+  if (avatar.startsWith("http") || avatar.startsWith("data:")) return avatar;
+  return `${apiBaseUrl}${avatar.startsWith("/") ? avatar : `/${avatar}`}`;
+};
 
 const primaryMenus = [
   { label: "Dashboard", to: "/dashboard", spacingClass: "mb-1" },
@@ -21,23 +29,35 @@ const navClass = (active) =>
       : "border-transparent text-[#1E293B] hover:bg-[#F1F5F9]"
   }`;
 
-const AppSidebar = ({ isOpen, onClose, activeMenu = "Dashboard" }) => {
-  const navigate = useNavigate();
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+const disabledNavClass =
+  "flex w-full cursor-not-allowed items-center gap-3 rounded-xl border-2 border-transparent px-4 py-2.5 text-left text-sm font-bold text-[#94A3B8] opacity-60";
 
-  const handleLogout = async () => {
-    try {
-      await apiRequest("/api/auth/logout", { method: "DELETE" });
-    } catch (error) {
-      console.error("Logout failed", error);
-    } finally {
-      clearAuth();
-      navigate("/");
-    }
-  };
+const AppSidebar = ({ isOpen, onClose, activeMenu = "Dashboard", navigationLocked = false }) => {
+  const [user, setUser] = useState(readAppData("user", {}));
+  const initial = (user?.name || user?.email || "U").trim().charAt(0).toUpperCase();
+
+  useEffect(() => {
+    const syncUser = () => setUser(readAppData("user", {}));
+    window.addEventListener("mindcare:user-updated", syncUser);
+    return () => window.removeEventListener("mindcare:user-updated", syncUser);
+  }, []);
 
   return (
     <>
+      {activeMenu !== "Profile" && !navigationLocked ? (
+        <Link
+          to="/profile"
+          className="fixed right-4 top-4 z-40 flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-[#1E293B] bg-white font-extrabold text-[#1E293B] shadow-[4px_4px_0px_0px_#1E293B] transition-all hover:-translate-y-0.5 lg:right-8"
+          aria-label="Buka profile"
+        >
+          {user?.avatar ? (
+            <img src={getAvatarSrc(user.avatar)} alt="Profile" className="h-full w-full object-cover" />
+          ) : (
+            initial
+          )}
+        </Link>
+      ) : null}
+
       {isOpen ? <button className="fixed inset-0 z-30 bg-black/20 lg:hidden" onClick={onClose} /> : null}
       <aside
         className={`fixed top-0 left-0 z-50 h-screen w-64 border-r border-[#E2E8F0] bg-white flex flex-col transition-transform duration-300 lg:sticky lg:translate-x-0 ${
@@ -56,6 +76,13 @@ const AppSidebar = ({ isOpen, onClose, activeMenu = "Dashboard" }) => {
           </span>
           {primaryMenus.map((item) => {
             const active = item.label === activeMenu;
+            if (navigationLocked && !active) {
+              return (
+                <button key={item.label} type="button" className={`${disabledNavClass} ${item.spacingClass || ""}`} disabled>
+                  {item.label}
+                </button>
+              );
+            }
             return item.to ? (
               <Link key={item.label} to={item.to} className={`${navClass(active)} ${item.spacingClass || ""}`}>
                 {item.label}
@@ -72,6 +99,13 @@ const AppSidebar = ({ isOpen, onClose, activeMenu = "Dashboard" }) => {
           </span>
           {activityMenus.map((item) => {
             const active = item.label === activeMenu;
+            if (navigationLocked && !active) {
+              return (
+                <button key={item.label} type="button" className={`${disabledNavClass} ${item.spacingClass || ""}`} disabled>
+                  {item.label}
+                </button>
+              );
+            }
             return item.to ? (
               <Link key={item.label} to={item.to} className={`${navClass(active)} ${item.spacingClass || ""}`}>
                 {item.label}
@@ -83,42 +117,7 @@ const AppSidebar = ({ isOpen, onClose, activeMenu = "Dashboard" }) => {
             );
           })}
         </nav>
-
-        <div className="mt-auto p-6">
-          <button
-            onClick={() => setShowLogoutConfirm(true)}
-            className="inline-block w-full rounded-[12px] border-2 border-[#1E293B] bg-[#A855F7] py-3 text-center font-extrabold text-white shadow-[4px_4px_0px_0px_#1E293B] transition-all duration-200 hover:-translate-y-0.5"
-          >
-            LOGOUT
-          </button>
-        </div>
       </aside>
-
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-[24px] border-4 border-[#1E293B] bg-[#FFFDF5] p-6 shadow-[8px_8px_0px_0px_#1E293B] text-center">
-            <h3 className="mb-2 text-2xl font-extrabold text-[#1E293B]">Yakin ingin keluar?</h3>
-            <p className="mb-6 font-medium text-[#64748B]">
-              Anda harus login kembali untuk mengakses fitur MindCare.
-            </p>
-            
-            <div className="flex gap-4">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 rounded-[12px] border-2 border-[#1E293B] bg-white py-3 text-center font-bold text-[#1E293B] shadow-[4px_4px_0px_0px_#1E293B] transition-all hover:-translate-y-0.5"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex-1 rounded-[12px] border-2 border-[#1E293B] bg-[#F43F5E] py-3 text-center font-bold text-white shadow-[4px_4px_0px_0px_#1E293B] transition-all hover:-translate-y-0.5"
-              >
-                Ya, Keluar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

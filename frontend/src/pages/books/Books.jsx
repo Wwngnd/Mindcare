@@ -8,6 +8,7 @@ import BooksGrid from "../../components/books/BooksGrid";
 import BooksSessionTimer from "../../components/books/BooksSessionTimer";
 import AppSidebar from "../../components/layout/AppSidebar";
 import { getBookSessions, saveBookSessions } from "../../lib/mindcareBookSessions";
+import { readUserData, writeUserData } from "../../lib/storage";
 
 const Books = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -20,8 +21,7 @@ const Books = () => {
   const exploredBooksRef = useRef([]);
 
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("mindcare_ai_books") || "[]");
-    setAiBooks(stored);
+    setAiBooks(readUserData("ai_books", []));
   }, []);
 
   const filteredBooks = useMemo(() => {
@@ -85,10 +85,10 @@ const Books = () => {
       ];
     }
     setSelectedBook(book);
-    const booksRead = JSON.parse(localStorage.getItem("mindcare_booksRead") || "[]");
+    const booksRead = readUserData("books_read", []);
     if (!booksRead.find((item) => item.bookId === book.id)) {
       booksRead.push({ id: Date.now(), bookId: book.id, date: new Date().toISOString() });
-      localStorage.setItem("mindcare_booksRead", JSON.stringify(booksRead));
+      writeUserData("books_read", booksRead);
     }
   };
 

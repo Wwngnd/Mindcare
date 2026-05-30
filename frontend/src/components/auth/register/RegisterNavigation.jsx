@@ -9,11 +9,7 @@ const RegisterNavigation = ({
 }) => {
   const isFinalStep = currentStep === totalSteps;
   const nextText = isFinalStep
-    ? "Menuju Dashboard"
-    : currentStep === 3
-    ? isQuizLastQuestion
-      ? "Selesaikan Kuesioner"
-      : "Pertanyaan Berikutnya"
+    ? "Daftar Sekarang"
     : "Lanjutkan";
 
   return (

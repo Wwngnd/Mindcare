@@ -1,12 +1,12 @@
 tags:
   - name: Stress Scan
-    description: Pemindaian tingkat stres user
+    description: Pemindaian stres berbasis AI wajah
 
 paths:
   /stress-scan:
     post:
       tags: [Stress Scan]
-      summary: Scan tingkat stres user
+      summary: Kirim gambar ke AI Flask lalu simpan hasil scan ke database
       security:
         - bearerAuth: []
       requestBody:
@@ -16,20 +16,29 @@ paths:
             schema:
               type: object
               properties:
-                jawaban:
-                  type: array
-                  items:
-                    type: integer
-                  example: [3, 2, 4, 1, 3]
+                image_base64:
+                  type: string
+                  description: Base64 image, bisa format data URL atau raw base64.
+                  example: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...
+                image_mimetype:
+                  type: string
+                  example: image/jpeg
+                image_filename:
+                  type: string
+                  example: selfie.jpg
+              required:
+                - image_base64
       responses:
         "201":
           description: Berhasil
         "401":
           description: Unauthorized
+        "422":
+          description: Validasi gagal
 
     get:
       tags: [Stress Scan]
-      summary: Ambil riwayat stress scan user
+      summary: Ambil semua stress scan user (admin only)
       security:
         - bearerAuth: []
       responses:
@@ -37,3 +46,58 @@ paths:
           description: Berhasil
         "401":
           description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /stress-scan/me:
+    get:
+      tags: [Stress Scan]
+      summary: Ambil riwayat stress scan milik user login
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Berhasil
+        "401":
+          description: Unauthorized
+
+  /stress-scan/{id}:
+    get:
+      tags: [Stress Scan]
+      summary: Ambil detail stress scan milik user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Berhasil
+        "401":
+          description: Unauthorized
+        "404":
+          description: Tidak ditemukan
+
+    delete:
+      tags: [Stress Scan]
+      summary: Hapus stress scan milik user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Berhasil
+        "401":
+          description: Unauthorized
+        "404":
+          description: Tidak ditemukan

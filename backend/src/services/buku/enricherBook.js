@@ -8,7 +8,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const enrichOneBuku = async (buku) => {
     try {
-        const thumbnail = await findBookThumbnail(buku.judul, buku.penulis);
+        const thumbnail = await findBookThumbnail(buku.judul, buku.penulis, buku.thumbnail);
         const deskripsi = await findBookDescription(buku.judul, buku.penulis, buku.deskripsi);
         return { thumbnail, deskripsi };
     } catch {

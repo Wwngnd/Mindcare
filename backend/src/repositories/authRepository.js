@@ -4,7 +4,7 @@ import { QueryTypes } from "sequelize";
 const authRepository = {
     async findUserByEmail(email) {
         const [user] = await db.query(
-            "SELECT id, name, email, password, role FROM tb_users WHERE email = ? LIMIT 1",
+            "SELECT id, name, email, password, role, avatar, jenis_kelamin, umur, pekerjaan FROM tb_users WHERE email = ? LIMIT 1",
             { replacements: [email], type: QueryTypes.SELECT }
         );
         return user;
@@ -12,7 +12,7 @@ const authRepository = {
 
     async findUserById(id) {
         const [user] = await db.query(
-            "SELECT id, name, email, role, avatar, createdAt FROM tb_users WHERE id = ? LIMIT 1",
+            "SELECT id, name, email, role, avatar, jenis_kelamin, umur, pekerjaan, createdAt FROM tb_users WHERE id = ? LIMIT 1",
             { replacements: [id], type: QueryTypes.SELECT }
         );
         return user;
@@ -20,7 +20,7 @@ const authRepository = {
 
     async findAllUsers() {
         return await db.query(
-            "SELECT id, name, email, role, avatar, createdAt FROM tb_users ORDER BY createdAt DESC",
+            "SELECT id, name, email, role, avatar, jenis_kelamin, umur, pekerjaan, createdAt FROM tb_users ORDER BY createdAt DESC",
             { type: QueryTypes.SELECT }
         );
     },

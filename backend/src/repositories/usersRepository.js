@@ -1,7 +1,7 @@
 import db from "../config/Database.js";
 import { QueryTypes } from "sequelize";
 
-const userSelectFields = "id, name, email, role, avatar, createdAt";
+const userSelectFields = "id, name, email, role, avatar, jenis_kelamin, umur, pekerjaan, createdAt";
 
 const usersRepository = {
     async findByEmail(email) {
@@ -20,11 +20,11 @@ const usersRepository = {
         return user;
     },
 
-    async create({ name, email, password, role, avatar = null }) {
+    async create({ name, email, password, role = 'user', avatar = null, jenis_kelamin = null, umur = null, pekerjaan = null }) {
         const [id] = await db.query(
-            "INSERT INTO tb_users (name, email, password, role, avatar) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO tb_users (name, email, password, role, avatar, jenis_kelamin, umur, pekerjaan) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             {
-                replacements: [name, email, password, role, avatar],
+                replacements: [name, email, password, role, avatar, jenis_kelamin, umur, pekerjaan],
                 type: QueryTypes.INSERT
             }
         );
@@ -44,6 +44,16 @@ const usersRepository = {
         if (Object.prototype.hasOwnProperty.call(data, "avatar")) {
             fields.push("avatar = ?");
             values.push(data.avatar);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(data, "umur")) {
+            fields.push("umur = ?");
+            values.push(data.umur);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(data, "pekerjaan")) {
+            fields.push("pekerjaan = ?");
+            values.push(data.pekerjaan);
         }
 
         values.push(id);

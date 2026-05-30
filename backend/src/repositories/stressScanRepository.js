@@ -8,14 +8,20 @@ import { QueryTypes } from "sequelize";
  * @returns {number} ID stress scan yang baru dibuat.
  */
 const insertStressScan = async (userId, data) => {
-    const { tingkat_stres, keterangan, mood, keterangan_mood } = data;
+    const {
+        tingkat_stres,
+        keterangan,
+        mood,
+        keterangan_mood,
+        foto_path = null
+    } = data;
 
     const [scanId] = await db.query(
         `INSERT INTO tb_stress_scan
-         (user_id, tingkat_stres, keterangan, mood, keterangan_mood)
-         VALUES (?, ?, ?, ?, ?)`,
+         (user_id, tingkat_stres, keterangan, mood, keterangan_mood, foto_path)
+         VALUES (?, ?, ?, ?, ?, ?)`,
         {
-            replacements: [userId, tingkat_stres, keterangan, mood, keterangan_mood],
+            replacements: [userId, tingkat_stres, keterangan, mood, keterangan_mood, foto_path],
             type: QueryTypes.INSERT
         }
     );

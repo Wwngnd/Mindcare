@@ -1,12 +1,12 @@
 tags:
   - name: Kuesioner
-    description: Kuesioner dan rekomendasi aktivitas
+    description: Kuesioner, prediksi AI, dan riwayat rekomendasi
 
 paths:
   /kuesioner:
     post:
       tags: [Kuesioner]
-      summary: Buat kuesioner dan dapatkan rekomendasi AI
+      summary: Simpan kuesioner, panggil AI, lalu simpan hasil rekomendasi ke database
       security:
         - bearerAuth: []
       requestBody:
@@ -15,25 +15,16 @@ paths:
           application/json:
             schema:
               type: object
-              properties:
-                mood:
-                  type: string
-                  example: sedih
-                tingkat_stres:
-                  type: integer
-                  example: 7
-                keluhan:
-                  type: string
-                  example: Sulit tidur dan mudah cemas
       responses:
         "201":
-          description: Berhasil membuat kuesioner dan rekomendasi
+          description: Berhasil membuat kuesioner dan menyimpan rekomendasi
         "401":
           description: Unauthorized
 
+  /kuesioner/me:
     get:
       tags: [Kuesioner]
-      summary: Ambil semua kuesioner milik user
+      summary: Ambil semua data kuesioner milik user login
       security:
         - bearerAuth: []
       responses:
@@ -44,15 +35,29 @@ paths:
         "401":
           description: Unauthorized
 
-  /kuesioner/{id}:
+  /kuesioner/rekomendasi:
     get:
       tags: [Kuesioner]
-      summary: Ambil detail kuesioner berdasarkan ID
+      summary: Ambil riwayat rekomendasi tersimpan dari database
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Berhasil
+        "404":
+          description: Belum ada data rekomendasi
+        "401":
+          description: Unauthorized
+
+  /kuesioner/rekomendasi/{sesiId}:
+    get:
+      tags: [Kuesioner]
+      summary: Ambil detail rekomendasi berdasarkan sesi_id dari database
       security:
         - bearerAuth: []
       parameters:
         - in: path
-          name: id
+          name: sesiId
           required: true
           schema:
             type: integer
@@ -61,10 +66,11 @@ paths:
         "200":
           description: Berhasil
         "404":
-          description: Data tidak ditemukan
+          description: Data rekomendasi tidak ditemukan
         "401":
           description: Unauthorized
 
+  /kuesioner/{id}:
     delete:
       tags: [Kuesioner]
       summary: Hapus kuesioner berdasarkan ID
@@ -84,3 +90,40 @@ paths:
           description: Data tidak ditemukan
         "401":
           description: Unauthorized
+
+  /kuesioner/all:
+    get:
+      tags: [Kuesioner]
+      summary: Ambil semua data kuesioner (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Berhasil
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /kuesioner/all/{id}:
+    get:
+      tags: [Kuesioner]
+      summary: Ambil detail kuesioner berdasarkan ID (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Berhasil
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Data tidak ditemukan

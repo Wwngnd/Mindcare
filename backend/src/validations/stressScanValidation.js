@@ -1,26 +1,54 @@
 import Joi from "joi";
 
 export const stressScanSchema = Joi.object({
-    tingkat_stres: Joi.number().integer().min(1).max(5).required().messages({
-        "number.base": "Tingkat stres harus berupa angka.",
-        "number.min": "Tingkat stres minimal 1.",
-        "number.max": "Tingkat stres maksimal 5.",
-        "any.required": "Tingkat stres wajib diisi."
-    }),
-    keterangan: Joi.string().max(50).required().messages({
-        "string.empty": "Keterangan tidak boleh kosong.",
-        "string.max": "Keterangan maksimal 50 karakter.",
-        "any.required": "Keterangan wajib diisi."
-    }),
-    mood: Joi.number().integer().min(0).max(4).required().messages({
-        "number.base": "Mood harus berupa angka.",
-        "number.min": "Mood minimal 0.",
-        "number.max": "Mood maksimal 4.",
-        "any.required": "Mood wajib diisi."
-    }),
-    keterangan_mood: Joi.string().max(50).required().messages({
-        "string.empty": "Keterangan mood tidak boleh kosong.",
-        "string.max": "Keterangan mood maksimal 50 karakter.",
-        "any.required": "Keterangan mood wajib diisi."
-    })
+    image_base64: Joi.string()
+        .required()
+        .messages({
+            "string.empty": "Gambar wajib diisi.",
+            "any.required": "Gambar wajib diisi."
+        }),
+    image_mimetype: Joi.string()
+        .valid("image/jpeg", "image/jpg", "image/png", "image/webp")
+        .optional()
+        .allow("", null)
+        .messages({
+            "any.only": "Format gambar harus jpeg, jpg, png, atau webp."
+        }),
+    image_filename: Joi.string()
+        .max(255)
+        .optional()
+        .allow("", null)
+        .messages({
+            "string.max": "Nama file maksimal 255 karakter."
+        }),
+
+    // ✅ Tambahkan field berikut
+    stress_level: Joi.number()
+        .integer()
+        .min(1)
+        .max(10)
+        .optional()
+        .messages({
+            "number.base": "Stress level harus berupa angka.",
+            "number.min": "Stress level minimal 1.",
+            "number.max": "Stress level maksimal 10."
+        }),
+    gejala: Joi.array()
+        .items(Joi.string())
+        .optional()
+        .messages({
+            "array.base": "Gejala harus berupa array."
+        }),
+    pemicu: Joi.string()
+        .optional()
+        .allow("", null)
+        .messages({
+            "string.base": "Pemicu harus berupa teks."
+        }),
+    catatan: Joi.string()
+        .optional()
+        .allow("", null)
+        .messages({
+            "string.base": "Catatan harus berupa teks."
+        })
 });

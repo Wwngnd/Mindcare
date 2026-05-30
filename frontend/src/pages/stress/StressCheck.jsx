@@ -8,6 +8,7 @@ import StressQuizPanel from "../../components/stress/StressQuizPanel";
 import StressResultPanel from "../../components/stress/StressResultPanel";
 import stressQuestions from "../../data/stressQuestions";
 import { apiRequest } from "../../lib/api";
+import { readAppData, writeUserData } from "../../lib/storage";
 
 const activityLabel = (aktivitas) => {
   const map = {
@@ -19,18 +20,21 @@ const activityLabel = (aktivitas) => {
 };
 
 const mapAnswersToKuesionerPayload = (answers) => {
-  const umur = Number(answers[0]) || 21;
-  const pekerjaan = stressQuestions[1].opts[answers[1]] ?? "mahasiswa";
-  const tingkat_stres = parseInt(stressQuestions[2].opts[answers[2]], 10) || 3;
-  const durasi_stres = Number(answers[3]) || 14;
-  const penyebab_stres = stressQuestions[4].opts[answers[4]] ?? "akademik";
-  const kualitas_tidur = parseInt(stressQuestions[5].opts[answers[5]], 10) || 3;
-  const waktu_luang = Number(answers[6]) || 90;
-  const mood = parseInt(stressQuestions[7].opts[answers[7]], 10) || 2;
-  const aktivitas_fisik = stressQuestions[8].opts[answers[8]] ?? "jarang";
-  const preferensi_olahraga = stressQuestions[9].opts[answers[9]] ?? "tidak";
-  const preferensi_membaca = stressQuestions[10].opts[answers[10]] ?? "ya";
-  const preferensi_journaling = stressQuestions[11].opts[answers[11]] ?? "tidak";
+  const user = readAppData("user", {});
+  // Umur default ke 21 jika tidak ada di profile (karena register tidak minta umur di Step 1/2)
+  const umur = user.umur || 21; 
+  const pekerjaan = user.pekerjaan || "mahasiswa";
+
+  const tingkat_stres = parseInt(stressQuestions[0].opts[answers[0]], 10) || 3;
+  const durasi_stres = Number(answers[1]) || 14;
+  const penyebab_stres = stressQuestions[2].opts[answers[2]] ?? "akademik";
+  const kualitas_tidur = parseInt(stressQuestions[3].opts[answers[3]], 10) || 3;
+  const waktu_luang = Number(answers[4]) || 90;
+  const mood = parseInt(stressQuestions[5].opts[answers[5]], 10) || 2;
+  const aktivitas_fisik = stressQuestions[6].opts[answers[6]] ?? "jarang";
+  const preferensi_olahraga = stressQuestions[7].opts[answers[7]] ?? "tidak";
+  const preferensi_membaca = stressQuestions[8].opts[answers[8]] ?? "ya";
+  const preferensi_journaling = stressQuestions[9].opts[answers[9]] ?? "tidak";
 
   return {
     umur,
@@ -59,6 +63,13 @@ const StressCheck = () => {
     setCurrentQ(0);
     setAnswers(new Array(stressQuestions.length).fill(null));
     setPanel("quiz");
+  };
+
+  const cancelQuiz = () => {
+    setCurrentQ(0);
+    setAnswers(new Array(stressQuestions.length).fill(null));
+    setResultData(null);
+    setPanel("intro");
   };
 
   const handleSelectAnswer = (value) => {
@@ -98,7 +109,7 @@ const StressCheck = () => {
             match: 100,
             reason: "Direkomendasikan oleh AI berdasarkan hasil kuesioner Anda."
           }));
-          localStorage.setItem("mindcare_ai_books", JSON.stringify(booksToSave));
+          writeUserData("ai_books", booksToSave);
         }
 
         setPanel("result");
@@ -133,10 +144,17 @@ const StressCheck = () => {
     };
   }, [resultData]);
 
+  const featureStarted = panel === "quiz" || panel === "loading";
+
   return (
     <div className="min-h-screen bg-[#F4F5F9] text-[#1E293B]">
       <div className="flex min-h-screen">
-        <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} activeMenu="Cek Stress" />
+        <AppSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          activeMenu="Cek Stress"
+          navigationLocked={featureStarted}
+        />
 
         <main className="flex-1 min-h-screen">
           <div className="p-4 lg:hidden">
@@ -156,6 +174,16 @@ const StressCheck = () => {
           </header>
 
           <div className="mx-auto max-w-4xl p-8 lg:p-12">
+            {featureStarted ? (
+              <div className="mb-6 flex justify-end">
+                <button
+                  onClick={cancelQuiz}
+                  className="rounded-xl border-2 border-[#1E293B] bg-white px-5 py-3 font-bold text-[#1E293B] shadow-[4px_4px_0px_0px_#1E293B]"
+                >
+                  Batalkan
+                </button>
+              </div>
+            ) : null}
             {panel === "intro" ? <StressIntroPanel onStart={startQuiz} /> : null}
 
             {panel === "quiz" ? (

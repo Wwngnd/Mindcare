@@ -27,6 +27,10 @@ const authController = {
                 id: user.id,
                 name: user.name,
                 email: user.email,
+                avatar: user.avatar,
+                jenis_kelamin: user.jenis_kelamin,
+                umur: user.umur,
+                pekerjaan: user.pekerjaan,
                 token: { accessToken }
             });
         } catch (error) {

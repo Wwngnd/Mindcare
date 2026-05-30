@@ -1,22 +1,5 @@
 const registerQuestions = [
   {
-    q: "Berapa umurmu?",
-    type: "number",
-    min: 10,
-    max: 100,
-    placeholder: "Masukkan usia (contoh: 21)",
-  },
-  {
-    q: "Apa pekerjaanmu?",
-    opts: [
-      "Pelajar/Mahasiswa",
-      "Pekerja Penuh Waktu",
-      "Wirausaha",
-      "Pekerja Lepas/Part-time",
-      "Tidak/Belum Bekerja",
-    ],
-  },
-  {
     q: "Seberapa stres kamu saat ini? (1-5)",
     opts: [
       "1 - Sangat Rendah",

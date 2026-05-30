@@ -12,7 +12,7 @@ const LoginForm = ({ form, onChange, onSubmit, loading }) => {
         id="login-email"
         name="email"
         required
-        placeholder="nama@email.com"
+        placeholder="Masukkan email"
         value={form.email}
         onChange={onChange}
         icon={FiMail}

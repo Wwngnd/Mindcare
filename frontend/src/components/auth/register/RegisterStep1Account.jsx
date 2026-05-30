@@ -28,7 +28,7 @@ const RegisterStep1Account = ({
         id="reg-email"
         name="email"
         required
-        placeholder="nama@email.com"
+        placeholder="contoh@email.com"
         value={form.email}
         onChange={onChange}
         icon={FiMail}

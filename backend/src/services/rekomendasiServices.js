@@ -11,9 +11,7 @@ export const saveRekomendasiUtama = async (sesiId, rekomendasiUtama) => {
         rekomendasiUtama.detail
     );
 
-    const hasBuku =
-        rekomendasiUtama.aktivitas === "membaca" &&
-        rekomendasiUtama.rekomendasi_buku?.length > 0;
+    const hasBuku = rekomendasiUtama.rekomendasi_buku?.length > 0;
 
     const enrichedBuku = hasBuku
         ? await enrichAndSaveBuku(rekomendasiUtama.rekomendasi_buku, aktivitasId)
@@ -35,7 +33,7 @@ export const saveAlternatif = async (sesiId, alternatifList) => {
             alt.detail
         );
 
-        const hasBuku = alt.aktivitas === "membaca" && alt.rekomendasi_buku?.length > 0;
+        const hasBuku = alt.rekomendasi_buku?.length > 0;
 
         const enrichedBuku = hasBuku
             ? await enrichAndSaveBuku(alt.rekomendasi_buku, altId)

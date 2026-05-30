@@ -1,5 +1,7 @@
 import Joi from "joi";
 
+const allowedJobs = ["mahasiswa", "pelajar", "karyawan", "wirausaha"];
+
 export const registerSchema = Joi.object({
     name: Joi.string()
         .min(2)
@@ -46,12 +48,33 @@ export const registerSchema = Joi.object({
         "any.only": "Hanya ada laki-laki dan perempuan"
     }),
 
-    avatar: Joi.string()
-        .max(255)
+    umur: Joi.number()
+        .integer()
+        .min(1)
+        .max(120)
+        .optional()
+        .allow(null)
+        .messages({
+            "number.base": "Umur harus berupa angka.",
+            "number.integer": "Umur harus berupa angka bulat.",
+            "number.min": "Umur minimal 1 tahun.",
+            "number.max": "Umur maksimal 120 tahun."
+        }),
+
+    pekerjaan: Joi.string()
+        .valid(...allowedJobs)
         .optional()
         .allow(null, "")
         .messages({
-            "string.max": "Avatar maksimal 255 karakter."
+            "any.only": "Pekerjaan hanya boleh mahasiswa, pelajar, karyawan, atau wirausaha."
+        }),
+
+    avatar: Joi.string()
+        .max(2000000)
+        .optional()
+        .allow(null, "")
+        .messages({
+            "string.max": "Avatar maksimal 2MB."
         }),
     role: Joi.string().valid("user", "admin").optional().messages({
         "any.only": "Hanya ada admin dan user"
@@ -81,8 +104,17 @@ export const updateProfileSchema = Joi.object({
         "string.empty": "Nama tidak boleh kosong.",
         "string.min": "Nama minimal 2 karakter."
     }),
-    avatar: Joi.string().max(255).optional().allow(null, "").messages({
-        "string.max": "Avatar maksimal 255 karakter."
+    avatar: Joi.string().max(2000000).optional().allow(null, "").messages({
+        "string.max": "Avatar maksimal 2MB."
+    }),
+    umur: Joi.number().integer().min(1).max(120).optional().allow(null).messages({
+        "number.base": "Umur harus berupa angka.",
+        "number.integer": "Umur harus berupa angka bulat.",
+        "number.min": "Umur minimal 1 tahun.",
+        "number.max": "Umur maksimal 120 tahun."
+    }),
+    pekerjaan: Joi.string().valid(...allowedJobs).optional().allow(null, "").messages({
+        "any.only": "Pekerjaan hanya boleh mahasiswa, pelajar, karyawan, atau wirausaha."
     }),
     password: Joi.string().min(6).max(255).optional().allow(null, "").messages({
         "string.min": "Password minimal 6 karakter.",

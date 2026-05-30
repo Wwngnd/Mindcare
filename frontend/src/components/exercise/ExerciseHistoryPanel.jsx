@@ -20,9 +20,9 @@ const ExerciseHistoryPanel = ({ history, onBack }) => {
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#8B5CF6]/10 text-[#8B5CF6]">🏋️</div>
                   <div>
-                    <p className="text-sm font-extrabold">{item.type}</p>
+                    <p className="text-sm font-extrabold">{item.jenis}</p>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
-                      {new Date(item.date).toLocaleDateString("id-ID", {
+                      {new Date(item.tanggal).toLocaleDateString("id-ID", {
                         day: "numeric",
                         month: "short",
                         year: "numeric",
@@ -31,13 +31,13 @@ const ExerciseHistoryPanel = ({ history, onBack }) => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-extrabold text-[#8B5CF6]">{item.dist}km</p>
+                  <p className="text-lg font-extrabold text-[#8B5CF6]">{item.jarak_km}km</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4 border-t-2 border-dashed border-[#E2E8F0] pt-3">
                 <div>
                   <p className="text-[10px] font-bold uppercase text-[#64748B]">Durasi</p>
-                  <p className="text-sm font-bold">{formatDuration(item.time)}</p>
+                  <p className="text-sm font-bold">{item.durasi_menit}m</p>
                 </div>
               </div>
             </div>

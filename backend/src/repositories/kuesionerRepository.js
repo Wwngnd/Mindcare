@@ -156,53 +156,21 @@ const insertAktivitas = async (sesiId, isUtama, aktivitas, confidence, durasi, d
  * @returns {number} ID buku yang sudah ada atau baru dibuat.
  */
 const insertBuku = async (aktivitasId, judul, penulis, kategori, thumbnail, deskripsi) => {
-    // Cek apakah buku dengan judul dan penulis yang sama sudah ada
-    const [existingBuku] = await db.query(
-        `SELECT id FROM tb_rekomendasi_buku 
-         WHERE judul = ? AND (penulis = ? OR (penulis IS NULL AND ? IS NULL)) 
-         LIMIT 1`,
+    await db.query(
+        `INSERT INTO tb_rekomendasi_buku
+         (aktivitas_id, judul, penulis, kategori, thumbnail, deskripsi)
+         VALUES (?, ?, ?, ?, ?, ?)`,
         {
-            replacements: [judul, penulis, penulis],
-            type: QueryTypes.SELECT
+            replacements: [aktivitasId, judul, penulis, kategori, thumbnail, deskripsi],
+            type: QueryTypes.INSERT
         }
     );
 
-    if (existingBuku) {
-        // Jika sudah ada, update (timpa) data bukunya
-        await db.query(
-            `UPDATE tb_rekomendasi_buku 
-             SET kategori = ?, 
-                 thumbnail = ?, 
-                 deskripsi = ?,
-                 updatedAt = NOW()
-             WHERE id = ?`,
-            {
-                replacements: [kategori, thumbnail, deskripsi, existingBuku.id],
-                type: QueryTypes.UPDATE
-            }
-        );
-        console.log(`[INFO] Buku "${judul}" sudah ada, data diupdate (ditimpa)`);
-        return existingBuku.id;
-    } else {
-        // Jika belum ada, insert baru
-        await db.query(
-            `INSERT INTO tb_rekomendasi_buku
-             (aktivitas_id, judul, penulis, kategori, thumbnail, deskripsi)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            {
-                replacements: [aktivitasId, judul, penulis, kategori, thumbnail, deskripsi],
-                type: QueryTypes.INSERT
-            }
-        );
-        console.log(`[INFO] Buku "${judul}" berhasil ditambahkan`);
-
-        // Ambil ID yang baru diinsert
-        const [newBuku] = await db.query(
-            "SELECT LAST_INSERT_ID() as id",
-            { type: QueryTypes.SELECT }
-        );
-        return newBuku?.id;
-    }
+    const [newBuku] = await db.query(
+        "SELECT LAST_INSERT_ID() as id",
+        { type: QueryTypes.SELECT }
+    );
+    return newBuku?.id;
 };
 
 // ─── Rekomendasi Distribusi ───────────────────────────────────────────────────
@@ -232,6 +200,154 @@ const findBukuById = async (id) => {
     return buku ?? null;
 };
 
+/**
+ * Mengambil ringkasan seluruh sesi rekomendasi milik user.
+ * Dipakai untuk menampilkan riwayat rekomendasi di frontend.
+ */
+const findRekomendasiSummaryByUserId = async (userId) => {
+    return db.query(
+        `SELECT
+            rs.id AS sesi_id,
+            rs.kuesioner_id,
+            rs.model_type,
+            rs.alasan,
+            rs.createdAt,
+            ra.aktivitas AS aktivitas_utama,
+            ra.confidence AS confidence_utama,
+            ra.durasi AS durasi_utama
+         FROM tb_rekomendasi_sesi rs
+         LEFT JOIN tb_rekomendasi_aktivitas ra
+            ON ra.sesi_id = rs.id
+            AND ra.is_utama = 1
+         WHERE rs.user_id = ?
+         ORDER BY rs.createdAt DESC`,
+        {
+            replacements: [userId],
+            type: QueryTypes.SELECT
+        }
+    );
+};
+
+/**
+ * Mengambil satu sesi rekomendasi milik user berdasarkan sesi_id.
+ */
+const findRekomendasiSesiByIdAndUser = async (sesiId, userId) => {
+    const [sesi] = await db.query(
+        `SELECT
+            id AS sesi_id,
+            user_id,
+            kuesioner_id,
+            model_type,
+            alasan,
+            createdAt
+         FROM tb_rekomendasi_sesi
+         WHERE id = ? AND user_id = ?
+         LIMIT 1`,
+        {
+            replacements: [sesiId, userId],
+            type: QueryTypes.SELECT
+        }
+    );
+
+    return sesi ?? null;
+};
+
+/**
+ * Mengambil daftar aktivitas rekomendasi (utama + alternatif) dalam satu sesi.
+ */
+const findRekomendasiAktivitasBySesiId = async (sesiId) => {
+    return db.query(
+        `SELECT
+            id,
+            sesi_id,
+            is_utama,
+            aktivitas,
+            confidence,
+            durasi,
+            detail
+         FROM tb_rekomendasi_aktivitas
+         WHERE sesi_id = ?
+         ORDER BY is_utama DESC, id ASC`,
+        {
+            replacements: [sesiId],
+            type: QueryTypes.SELECT
+        }
+    );
+};
+
+/**
+ * Mengambil daftar buku rekomendasi dalam satu sesi (via relasi aktivitas).
+ */
+const findRekomendasiBukuBySesiId = async (sesiId) => {
+    return db.query(
+        `SELECT
+            b.id,
+            b.aktivitas_id,
+            b.judul,
+            b.penulis,
+            b.kategori,
+            b.thumbnail,
+            b.deskripsi
+         FROM tb_rekomendasi_buku b
+         JOIN tb_rekomendasi_aktivitas a
+            ON a.id = b.aktivitas_id
+         WHERE a.sesi_id = ?
+         ORDER BY b.id ASC`,
+        {
+            replacements: [sesiId],
+            type: QueryTypes.SELECT
+        }
+    );
+};
+
+/**
+ * Mengambil semua buku yang pernah direkomendasikan ke user dari seluruh sesi kuesioner.
+ */
+const findRekomendasiBukuHistoryByUserId = async (userId) => {
+    return db.query(
+        `SELECT
+            b.id,
+            b.aktivitas_id,
+            b.judul,
+            b.penulis,
+            b.kategori,
+            b.thumbnail,
+            b.deskripsi,
+            a.sesi_id,
+            a.aktivitas,
+            a.is_utama,
+            rs.kuesioner_id,
+            rs.createdAt AS recommended_at
+         FROM tb_rekomendasi_buku b
+         JOIN tb_rekomendasi_aktivitas a
+            ON a.id = b.aktivitas_id
+         JOIN tb_rekomendasi_sesi rs
+            ON rs.id = a.sesi_id
+         WHERE rs.user_id = ?
+         ORDER BY rs.createdAt DESC, b.id ASC`,
+        {
+            replacements: [userId],
+            type: QueryTypes.SELECT
+        }
+    );
+};
+
+/**
+ * Mengambil distribusi probabilitas aktivitas dalam satu sesi.
+ */
+const findRekomendasiDistribusiBySesiId = async (sesiId) => {
+    return db.query(
+        `SELECT aktivitas, probabilitas
+         FROM tb_rekomendasi_distribusi
+         WHERE sesi_id = ?
+         ORDER BY id ASC`,
+        {
+            replacements: [sesiId],
+            type: QueryTypes.SELECT
+        }
+    );
+};
+
 export default {
     insertKuesioner,
     findKuesionerById,
@@ -243,5 +359,11 @@ export default {
     insertAktivitas,
     insertBuku,
     insertDistribusi,
-    findBukuById
+    findBukuById,
+    findRekomendasiSummaryByUserId,
+    findRekomendasiSesiByIdAndUser,
+    findRekomendasiAktivitasBySesiId,
+    findRekomendasiBukuBySesiId,
+    findRekomendasiBukuHistoryByUserId,
+    findRekomendasiDistribusiBySesiId
 };

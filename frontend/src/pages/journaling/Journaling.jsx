@@ -72,6 +72,12 @@ const Journaling = () => {
     setElapsedSeconds(0);
   };
 
+  const cancelJournal = () => {
+    setTitle("");
+    setContent("");
+    resetSessionTimer();
+  };
+
   const handleSave = async () => {
     if (!content.trim()) {
       alert("Konten tidak boleh kosong!");
@@ -109,10 +115,17 @@ const Journaling = () => {
     }
   };
 
+  const featureStarted = activeTab === "write" && Boolean(title.trim() || content.trim() || timerRunning);
+
   return (
     <div className="min-h-screen bg-[#F4F5F9] text-[#1E293B]">
       <div className="flex min-h-screen">
-        <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} activeMenu="Journaling" />
+        <AppSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          activeMenu="Journaling"
+          navigationLocked={featureStarted}
+        />
 
         <main className="min-h-screen flex-1">
           <div className="p-4 lg:hidden">
@@ -133,6 +146,17 @@ const Journaling = () => {
 
           <div className="mx-auto max-w-4xl p-8 lg:p-12">
             <JournalTabs activeTab={activeTab} onChange={setActiveTab} />
+
+            {featureStarted ? (
+              <div className="mb-6 flex justify-end">
+                <button
+                  onClick={cancelJournal}
+                  className="rounded-xl border-2 border-[#1E293B] bg-white px-5 py-3 font-bold text-[#1E293B] shadow-[4px_4px_0px_0px_#1E293B]"
+                >
+                  Batalkan
+                </button>
+              </div>
+            ) : null}
 
             {activeTab === "write" ? (
               <JournalWritePanel

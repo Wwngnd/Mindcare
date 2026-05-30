@@ -10,6 +10,7 @@ import ExerciseSelectPanel from "../../components/exercise/ExerciseSelectPanel";
 import ExerciseSummaryPanel from "../../components/exercise/ExerciseSummaryPanel";
 import ExerciseTrackingPanel from "../../components/exercise/ExerciseTrackingPanel";
 import AppSidebar from "../../components/layout/AppSidebar";
+import { createOlahraga, getMyOlahraga } from "../../lib/api";
 
 const haversine = (lat1, lon1, lat2, lon2) => {
   const R = 6371;
@@ -47,21 +48,30 @@ const Exercise = () => {
   const [showEndModal, setShowEndModal] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [currentCoords, setCurrentCoords] = useState(null);
-  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     pausedRef.current = isPaused;
   }, [isPaused]);
 
-  const history = useMemo(() => {
-    // historyRefreshKey dipakai supaya history ikut reload setelah "Selesai"
-    void historyRefreshKey;
+  const fetchHistory = async () => {
     try {
-      return JSON.parse(localStorage.getItem("mc_exercises") || "[]").reverse();
-    } catch {
-      return [];
+      setLoadingHistory(true);
+      const res = await getMyOlahraga();
+      setHistory(res?.payload?.olahraga || []);
+    } catch (err) {
+      console.error("Failed to fetch history:", err);
+    } finally {
+      setLoadingHistory(false);
     }
-  }, [historyRefreshKey]);
+  };
+
+  useEffect(() => {
+    if (panel === "history") {
+      fetchHistory();
+    }
+  }, [panel]);
 
   useEffect(() => {
     return () => {
@@ -91,7 +101,6 @@ const Exercise = () => {
       setGpsStatus("checking");
       checkGPSPermission();
     }
-    if (nextPanel === "history") setHistoryRefreshKey((prev) => prev + 1);
   };
 
   const selectActivity = (activity) => {
@@ -175,30 +184,69 @@ const Exercise = () => {
   const pauseTracking = () => setIsPaused(true);
   const resumeTracking = () => setIsPaused(false);
 
-  const finishTracking = () => {
+  const cancelExercise = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current);
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
+    timerRef.current = null;
+    watchRef.current = null;
+    lastPositionRef.current = null;
+    userMarkerRef.current = null;
+    routeRef.current = null;
+    setShowEndModal(false);
+    setSelectedActivity(null);
+    setSeconds(0);
+    setDistance(0);
+    setIsPaused(false);
+    setMapReady(false);
+    setCurrentCoords(null);
+    showPanel("select");
+  };
+
+  const finishTracking = async () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current);
 
-    const saved = {
-      type: selectedActivity?.name || "Aktivitas",
-      dist: distance.toFixed(2),
-      time: seconds,
-      date: new Date().toISOString(),
+    // ✅ Joi validation expects lowercase: "lari", "jalan", "sepeda"
+    const typeMapping = {
+      "Berlari": "lari",
+      "Berjalan": "jalan",
+      "Bersepeda": "sepeda"
     };
 
-    const historyItems = JSON.parse(localStorage.getItem("mc_exercises") || "[]");
-    historyItems.push(saved);
-    localStorage.setItem("mc_exercises", JSON.stringify(historyItems));
+    const payload = {
+      jenis: typeMapping[selectedActivity?.name] || "lari",
+      jarak_km: Math.max(0.01, Number(distance.toFixed(2))), // Minimal 0.01 agar lolos Joi positive()
+      durasi_menit: Math.max(1, Math.floor(seconds / 60)),
+      tanggal: new Date().toISOString().split("T")[0], // ✅ Format YYYY-MM-DD untuk kolom DATE MySQL
+      rute_maps: []
+    };
 
-    setShowEndModal(false);
-    showPanel("summary");
-    setHistoryRefreshKey((prev) => prev + 1);
+    try {
+      await createOlahraga(payload);
+      setShowEndModal(false);
+      showPanel("summary");
+    } catch (err) {
+      console.error("Failed to save exercise:", err);
+      const msg = err.response?.msg || err.message || "Terjadi kesalahan.";
+      alert(`Gagal menyimpan data olahraga: ${msg}`);
+    }
   };
+
+  const featureStarted = panel === "prep" || panel === "tracking";
 
   return (
     <div className="min-h-screen bg-[#F4F5F9] text-[#1E293B]">
       <div className="flex min-h-screen">
-        <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} activeMenu="Olahraga" />
+        <AppSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          activeMenu="Olahraga"
+          navigationLocked={featureStarted}
+        />
 
         <main className="min-h-screen flex-1">
           <div className="p-4 lg:hidden">
@@ -218,6 +266,16 @@ const Exercise = () => {
           </header>
 
           <div className="mx-auto max-w-6xl p-8 lg:p-12">
+            {featureStarted ? (
+              <div className="mb-6 flex justify-end">
+                <button
+                  onClick={cancelExercise}
+                  className="rounded-xl border-2 border-[#1E293B] bg-white px-5 py-3 font-bold text-[#1E293B] shadow-[4px_4px_0px_0px_#1E293B]"
+                >
+                  Batalkan
+                </button>
+              </div>
+            ) : null}
             {panel === "select" ? (
               <ExerciseSelectPanel onSelect={selectActivity} onOpenHistory={() => showPanel("history")} />
             ) : null}

@@ -12,6 +12,7 @@ import Journaling from "../pages/journaling/Journaling";
 import Exercise from "../pages/exercise/Exercise";
 import Books from "../pages/books/Books";
 import BooksExplorationHistory from "../pages/books/BooksExplorationHistory";
+import Profile from "../pages/profile/Profile";
 import NotFound from "../pages/NotFound";
 
 const AppRoutes = () => {
@@ -19,7 +20,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-      
+
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/checkin" element={<ProtectedRoute><Checkin /></ProtectedRoute>} />
       <Route path="/stress-check" element={<ProtectedRoute><StressCheck /></ProtectedRoute>} />
@@ -27,7 +28,8 @@ const AppRoutes = () => {
       <Route path="/exercise" element={<ProtectedRoute><Exercise /></ProtectedRoute>} />
       <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
       <Route path="/books/riwayat" element={<ProtectedRoute><BooksExplorationHistory /></ProtectedRoute>} />
-      
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+
       {/* Halaman 404 Not Found */}
       <Route path="*" element={<NotFound />} />
     </Routes>
