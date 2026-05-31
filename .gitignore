@@ -9,3 +9,9 @@ node_modules/
 
 # Environment
 .env
+
+# AI Models
+*.keras
+*.h5
+*.pkl
+*.joblib
