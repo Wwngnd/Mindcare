@@ -7,9 +7,31 @@ import BooksFilterBar from "../../components/books/BooksFilterBar";
 import BooksGrid from "../../components/books/BooksGrid";
 import BooksSessionTimer from "../../components/books/BooksSessionTimer";
 import AppSidebar from "../../components/layout/AppSidebar";
+import booksData from "../../data/booksData";
 import { useAlertPopup } from "../../hooks/useAlertPopup";
+import { pickBookCategoryKeys } from "../../lib/bookCategories";
+import { normalizeThumbnailUrl } from "../../lib/bookCoverResolver";
 import { getBookSessions, saveBookSessions } from "../../lib/mindcareBookSessions";
 import { readUserData, writeUserData } from "../../lib/storage";
+
+const normalizeAiBooks = (storedBooks) => (
+  Array.isArray(storedBooks)
+    ? storedBooks
+      .filter((book) => book?.id && book?.title)
+      .map((book) => {
+        const rawCategory = String(book.categoriesRaw || book.category || "").trim();
+        const derivedKeys = pickBookCategoryKeys(rawCategory);
+        const mergedKeys = [...new Set(["ai_recommendation", ...derivedKeys, ...(book.categoryKeys || [])])];
+        return {
+          ...book,
+          categoryKeys: mergedKeys,
+          category: book.category || rawCategory || "Self Help",
+          categoriesRaw: rawCategory || book.categoriesRaw || "",
+          thumbnail: normalizeThumbnailUrl(book.thumbnail),
+        };
+      })
+    : []
+);
 
 const Books = () => {
   const { showAlert } = useAlertPopup();
@@ -18,23 +40,57 @@ const Books = () => {
   const [selectedBook, setSelectedBook] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
-  const [aiBooks, setAiBooks] = useState([]);
+  const [aiBooks] = useState(() => normalizeAiBooks(readUserData("ai_books", [])));
   const sessionStartedRef = useRef(false);
   const exploredBooksRef = useRef([]);
 
   useEffect(() => {
-    setAiBooks(readUserData("ai_books", []));
+    const storedBooks = readUserData("ai_books", []);
+    const normalizedBooks = normalizeAiBooks(storedBooks);
+    if (JSON.stringify(storedBooks) !== JSON.stringify(normalizedBooks)) {
+      writeUserData("ai_books", normalizedBooks);
+    }
   }, []);
 
   const filteredBooks = useMemo(() => {
-    const allBooks = [...aiBooks];
-    const uniqueBooks = Array.from(new Map(allBooks.map(item => [item.id, item])).values());
-    
+    const mergedByKey = new Map();
+
+    booksData.forEach((book) => {
+      const title = String(book.title || "").trim().toLowerCase();
+      const author = String(book.author || "").trim().toLowerCase();
+      const key = `${title}::${author}`;
+      mergedByKey.set(key, { ...book, id: `CAT_${book.id}` });
+    });
+
+    aiBooks.forEach((book) => {
+      const title = String(book.title || "").trim().toLowerCase();
+      const author = String(book.author || "").trim().toLowerCase();
+      const key = `${title}::${author}`;
+      const existing = mergedByKey.get(key);
+
+      if (!existing) {
+        mergedByKey.set(key, book);
+        return;
+      }
+
+      mergedByKey.set(key, {
+        ...existing,
+        ...book,
+        categoryKeys: [...new Set([...(existing.categoryKeys || []), ...(book.categoryKeys || [])])],
+      });
+    });
+
+    const uniqueBooks = Array.from(mergedByKey.values());
     const items =
       currentFilter === "all"
         ? uniqueBooks
         : uniqueBooks.filter((book) => (book.categoryKeys || []).includes(currentFilter));
-    return items.sort((a, b) => b.match - a.match);
+
+    return items.sort((a, b) => {
+      const aiPriority = Number((b.categoryKeys || []).includes("ai_recommendation")) - Number((a.categoryKeys || []).includes("ai_recommendation"));
+      if (aiPriority !== 0) return aiPriority;
+      return (Number(b.match) || 0) - (Number(a.match) || 0);
+    });
   }, [currentFilter, aiBooks]);
 
   useEffect(() => {

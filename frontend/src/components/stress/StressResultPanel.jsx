@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { FiBookOpen, FiCheckCircle, FiStar } from "react-icons/fi";
 
+import BookCoverImage from "../books/BookCoverImage";
+
 const StressResultPanel = ({ result, onRetry }) => {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -40,24 +42,24 @@ const StressResultPanel = ({ result, onRetry }) => {
         <h4 className="mb-4 text-lg font-bold">Rekomendasi Buku</h4>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {result.books.map((book) => (
-            <div key={book.title} className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-[#9333EA]">
-              {book.thumbnail ? (
-                <div className="mb-4 h-40 w-full overflow-hidden rounded-lg bg-gray-100">
-                  <img
-                    src={book.thumbnail}
-                    alt={book.title}
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                      if (e.currentTarget.nextElementSibling) e.currentTarget.nextElementSibling.classList.remove("hidden");
-                    }}
-                  />
-                  <div className="hidden flex h-full items-center justify-center text-3xl">📚</div>
-                </div>
-              ) : null}
+            <div
+              key={book.title}
+              className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-[#9333EA]"
+            >
+              <div className="mb-4 h-40 w-full overflow-hidden rounded-lg bg-gray-100">
+                <BookCoverImage
+                  key={`${book.title}-${book.author}-${book.thumbnail || ""}`}
+                  title={book.title}
+                  author={book.author}
+                  thumbnail={book.thumbnail}
+                  alt={book.title}
+                  className="h-full w-full object-cover"
+                />
+              </div>
               <div className="mb-2">
-                <span className="rounded bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase text-gray-600">{book.category}</span>
+                <span className="rounded bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase text-gray-600">
+                  {book.category}
+                </span>
               </div>
               <h5 className="mb-1 font-bold text-[#1E293B]">{book.title}</h5>
               <p className="mb-2 text-xs font-medium text-[#64748B]">Oleh {book.author}</p>

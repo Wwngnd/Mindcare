@@ -9,6 +9,8 @@ import StressResultPanel from "../../components/stress/StressResultPanel";
 import stressQuestions from "../../data/stressQuestions";
 import { useAlertPopup } from "../../hooks/useAlertPopup";
 import { apiRequest } from "../../lib/api";
+import { pickBookCategoryKeys } from "../../lib/bookCategories";
+import { normalizeThumbnailUrl } from "../../lib/bookCoverResolver";
 import { readAppData, writeUserData } from "../../lib/storage";
 
 const activityLabel = (aktivitas) => {
@@ -100,17 +102,22 @@ const StressCheck = () => {
         setResultData(rekomendasi);
 
         if (rekomendasi?.rekomendasi_utama?.rekomendasi_buku) {
-          const booksToSave = rekomendasi.rekomendasi_utama.rekomendasi_buku.map((b, i) => ({
-            id: `AI_REC_${Date.now()}_${i}`,
-            title: b.judul,
-            author: b.penulis,
-            categoryKeys: ["ai_recommendation", "selfhelp"],
-            category: b.kategori || "Self Help",
-            desc: b.deskripsi,
-            thumbnail: b.thumbnail,
-            match: 100,
-            reason: "Direkomendasikan oleh AI berdasarkan hasil kuesioner Anda."
-          }));
+          const booksToSave = rekomendasi.rekomendasi_utama.rekomendasi_buku.map((b, i) => {
+            const rawCategory = b.kategori || "";
+            const categoryKeys = [...new Set(["ai_recommendation", ...pickBookCategoryKeys(rawCategory)])];
+            return {
+              id: `AI_REC_${Date.now()}_${i}`,
+              title: b.judul,
+              author: b.penulis,
+              categoryKeys,
+              category: rawCategory || "Self Help",
+              categoriesRaw: rawCategory,
+              desc: b.deskripsi,
+              thumbnail: normalizeThumbnailUrl(b.thumbnail),
+              match: 100,
+              reason: "Direkomendasikan oleh AI berdasarkan hasil kuesioner Anda."
+            };
+          });
           writeUserData("ai_books", booksToSave);
         }
 

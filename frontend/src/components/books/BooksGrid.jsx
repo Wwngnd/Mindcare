@@ -1,3 +1,5 @@
+import BookCoverImage from "./BookCoverImage";
+
 const catLabels = {
   mindfulness: "🙏 Mindfulness & Health",
   selfhelp: "💪 Self-Help",
@@ -66,24 +68,14 @@ const BooksGrid = ({ books, onSelect }) => {
           className="cursor-pointer overflow-hidden rounded-[14px] border border-[#5e6070] bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-0.5"
         >
           <div className="h-[138px] border-b border-[#5e6070] bg-[#ededf7]">
-            {book.thumbnail ? (
-              <img
-                src={book.thumbnail}
-                alt={book.title}
-                className="h-full w-full object-cover"
-                loading="lazy"
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                  const fallback = event.currentTarget.nextElementSibling;
-                  if (fallback) fallback.classList.remove("hidden");
-                }}
-              />
-            ) : null}
-            <div
-              className={`flex h-full items-center justify-center p-4 text-center ${book.thumbnail ? "hidden" : ""}`}
-            >
-              <span className="line-clamp-3 text-[26px] font-extrabold leading-tight text-[#20253a]">{book.title}</span>
-            </div>
+            <BookCoverImage
+              key={`${book.id}-${book.thumbnail || ""}`}
+              title={book.title}
+              author={book.author}
+              thumbnail={book.thumbnail}
+              alt={book.title}
+              className="h-full w-full object-cover"
+            />
           </div>
           <div className="min-h-[120px] bg-white px-4 py-4">
             <div className="mb-2 flex items-center gap-1.5">
