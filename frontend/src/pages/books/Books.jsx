@@ -7,10 +7,12 @@ import BooksFilterBar from "../../components/books/BooksFilterBar";
 import BooksGrid from "../../components/books/BooksGrid";
 import BooksSessionTimer from "../../components/books/BooksSessionTimer";
 import AppSidebar from "../../components/layout/AppSidebar";
+import { useAlertPopup } from "../../hooks/useAlertPopup";
 import { getBookSessions, saveBookSessions } from "../../lib/mindcareBookSessions";
 import { readUserData, writeUserData } from "../../lib/storage";
 
 const Books = () => {
+  const { showAlert } = useAlertPopup();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentFilter, setCurrentFilter] = useState("all");
   const [selectedBook, setSelectedBook] = useState(null);
@@ -72,7 +74,10 @@ const Books = () => {
       exploredBooks: exploredBooksRef.current.map((b) => ({ ...b })),
     });
     saveBookSessions(sessions);
-    alert("Waktu sesi eksplorasi tersimpan. Terima kasih sudah meluangkan waktu untuk dirimu.");
+    showAlert(
+      "Waktu sesi eksplorasi tersimpan. Terima kasih sudah meluangkan waktu untuk dirimu.",
+      { type: "success", title: "Sesi tersimpan" },
+    );
     resetSessionTimer();
   };
 

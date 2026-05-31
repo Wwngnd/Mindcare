@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FiMenu } from "react-icons/fi";
 
 import JournalHistoryPanel from "../../components/journaling/JournalHistoryPanel";
 import JournalTabs from "../../components/journaling/JournalTabs";
 import JournalWritePanel from "../../components/journaling/JournalWritePanel";
 import AppSidebar from "../../components/layout/AppSidebar";
+import { useAlertPopup } from "../../hooks/useAlertPopup";
 import { apiRequest } from "../../lib/api";
 
 const Journaling = () => {
+  const { showAlert } = useAlertPopup();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("write");
   const [title, setTitle] = useState("");
@@ -15,6 +17,8 @@ const Journaling = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [deletingJournal, setDeletingJournal] = useState(false);
   const sessionStartedRef = useRef(false);
 
   const [journals, setJournals] = useState([]);
@@ -34,6 +38,12 @@ const Journaling = () => {
           setJournals(fetchedJournals);
         }
       } catch (err) {
+        // Backend mengembalikan 404 saat jurnal kosong.
+        // Pastikan state frontend ikut kosong agar UI tidak menampilkan data stale.
+        if (err?.status === 404) {
+          setJournals([]);
+          return;
+        }
         console.error("Gagal mengambil data jurnal:", err);
       }
     };
@@ -80,7 +90,7 @@ const Journaling = () => {
 
   const handleSave = async () => {
     if (!content.trim()) {
-      alert("Konten tidak boleh kosong!");
+      showAlert("Konten tidak boleh kosong!", { type: "warning", title: "Data belum lengkap" });
       return;
     }
 
@@ -94,24 +104,46 @@ const Journaling = () => {
         },
       });
 
-      alert("Jurnal disimpan!");
+      showAlert("Jurnal disimpan!", { type: "success", title: "Berhasil" });
       setTitle("");
       setContent("");
       resetSessionTimer();
       setRefreshKey((prev) => prev + 1);
       setActiveTab("history");
     } catch (err) {
-      alert(err.message || "Gagal menyimpan jurnal");
+      showAlert(err.message || "Gagal menyimpan jurnal", {
+        type: "error",
+        title: "Simpan jurnal gagal",
+      });
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus jurnal ini?")) return;
+  const handleDeleteRequest = (id) => {
+    setDeleteTargetId(id);
+  };
+
+  const closeDeleteModal = () => {
+    if (deletingJournal) return;
+    setDeleteTargetId(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteTargetId === null) return;
     try {
-      await apiRequest(`api/journal/${id}`, { method: "DELETE" });
+      setDeletingJournal(true);
+      const targetId = deleteTargetId;
+      await apiRequest(`api/journal/${targetId}`, { method: "DELETE" });
+      setJournals((prev) => prev.filter((item) => item.id !== targetId));
       setRefreshKey((prev) => prev + 1);
+      showAlert("Jurnal berhasil dihapus.", { type: "success", title: "Berhasil" });
+      setDeleteTargetId(null);
     } catch (err) {
-      alert(err.message || "Gagal menghapus jurnal");
+      showAlert(err.message || "Gagal menghapus jurnal", {
+        type: "error",
+        title: "Hapus jurnal gagal",
+      });
+    } finally {
+      setDeletingJournal(false);
     }
   };
 
@@ -169,11 +201,41 @@ const Journaling = () => {
                 timerActive={timerRunning}
               />
             ) : (
-              <JournalHistoryPanel journals={journals} onDelete={handleDelete} />
+              <JournalHistoryPanel journals={journals} onDelete={handleDeleteRequest} />
             )}
           </div>
         </main>
       </div>
+
+      {deleteTargetId !== null ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-[24px] border-4 border-[#1E293B] bg-[#FFFDF5] p-6 shadow-[8px_8px_0px_0px_#1E293B]">
+            <h3 className="mb-2 text-xl font-extrabold text-[#1E293B]">Hapus jurnal ini?</h3>
+            <p className="mb-6 text-sm font-medium text-[#64748B]">
+              Data yang sudah dihapus tidak bisa dikembalikan lagi.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deletingJournal}
+                className="flex-1 rounded-[12px] border-2 border-[#1E293B] bg-white py-3 font-bold text-[#1E293B] shadow-[4px_4px_0px_0px_#1E293B] transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                disabled={deletingJournal}
+                className="flex-1 rounded-[12px] border-2 border-[#1E293B] bg-[#F43F5E] py-3 font-bold text-white shadow-[4px_4px_0px_0px_#1E293B] transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingJournal ? "Menghapus..." : "Hapus"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

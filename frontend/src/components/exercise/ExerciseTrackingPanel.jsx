@@ -6,6 +6,7 @@ const ExerciseTrackingPanel = ({
   distance,
   isPaused,
   currentCoords,
+  gpsAccuracy,
   mapContainerRef,
   onPause,
   onResume,
@@ -36,6 +37,9 @@ const ExerciseTrackingPanel = ({
         </div>
         <p className="mt-3 text-center text-xs text-[#64748B]">
           {currentCoords ? `Posisi: ${currentCoords.lat.toFixed(5)}, ${currentCoords.lng.toFixed(5)}` : "Menunggu GPS..."}
+        </p>
+        <p className="mt-1 text-center text-[11px] font-medium text-[#8B5CF6]">
+          {gpsAccuracy ? `Akurasi GPS: ±${gpsAccuracy} m` : "Mencari akurasi GPS..."}
         </p>
         <div className="mt-6 flex justify-center gap-4">
           {!isPaused ? (

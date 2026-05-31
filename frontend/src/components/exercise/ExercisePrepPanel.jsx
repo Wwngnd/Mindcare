@@ -1,16 +1,25 @@
 const ExercisePrepPanel = ({ selectedActivity, gpsStatus, onCancel, onStart, onRetryGPS }) => {
-  const icon = selectedActivity?.name === "Berlari" ? "🏃" : selectedActivity?.name === "Bersepeda" ? "🚴" : "🚶";
+  const icon =
+    selectedActivity?.name === "Berlari"
+      ? "🏃"
+      : selectedActivity?.name === "Bersepeda"
+      ? "🚴"
+      : "🚶";
 
   const gpsStyle =
     gpsStatus === "ready"
       ? "bg-emerald-400"
+      : gpsStatus === "weak"
+      ? "bg-amber-400"
       : gpsStatus === "denied"
       ? "bg-red-500"
       : "bg-gray-400";
 
   const gpsLabel =
     gpsStatus === "ready"
-      ? "GPS Siap ✓"
+      ? "GPS Siap"
+      : gpsStatus === "weak"
+      ? "Sinyal GPS Lemah"
       : gpsStatus === "denied"
       ? "Izin GPS Ditolak"
       : "Memeriksa GPS...";
@@ -23,16 +32,21 @@ const ExercisePrepPanel = ({ selectedActivity, gpsStatus, onCancel, onStart, onR
         <span className={`h-2.5 w-2.5 rounded-full ${gpsStyle}`} />
         <span>{gpsLabel}</span>
       </div>
+
       {gpsStatus !== "ready" ? (
         <p className="mb-4 text-xs font-medium text-[#64748B]">
-          Izinkan akses lokasi terlebih dahulu agar tracking bisa dimulai.
+          {gpsStatus === "weak"
+            ? "Pindah ke area lebih terbuka agar akurasi GPS membaik."
+            : "Izinkan akses lokasi terlebih dahulu agar tracking bisa dimulai."}
         </p>
       ) : null}
+
       <div className="flex justify-center gap-4">
         <button onClick={onCancel} className="rounded-full border-2 border-[#1E293B] px-6 py-2 font-bold">
           Batal
         </button>
-        {gpsStatus === "denied" ? (
+
+        {gpsStatus === "denied" || gpsStatus === "weak" ? (
           <button
             onClick={onRetryGPS}
             className="rounded-full border-2 border-[#1E293B] bg-amber-300 px-6 py-2 font-bold shadow-[4px_4px_0px_0px_#1E293B]"
@@ -40,9 +54,10 @@ const ExercisePrepPanel = ({ selectedActivity, gpsStatus, onCancel, onStart, onR
             Cek GPS Lagi
           </button>
         ) : null}
+
         <button
           onClick={onStart}
-          disabled={gpsStatus !== "ready"}
+          disabled={gpsStatus === "checking" || gpsStatus === "denied"}
           className="rounded-full border-2 border-[#1E293B] bg-emerald-400 px-8 py-2 font-bold shadow-[4px_4px_0px_0px_#1E293B] disabled:cursor-not-allowed disabled:opacity-50"
         >
           Mulai

@@ -6,6 +6,7 @@ import CheckinCameraPanel from "../../components/checkin/CheckinCameraPanel";
 import CheckinPreviewPanel from "../../components/checkin/CheckinPreviewPanel";
 import CheckinResultPanel from "../../components/checkin/CheckinResultPanel";
 import AppSidebar from "../../components/layout/AppSidebar";
+import { useAlertPopup } from "../../hooks/useAlertPopup";
 import { scanStress, getMyStressScans } from "../../lib/api";
 import { checkTodayStatus } from "../../utils/checkinSchedule";
 
@@ -61,6 +62,7 @@ const MOOD_BACKEND_MAP = {
 // ─── Komponen Utama ───────────────────────────────────────────────────────────
 
 const Checkin = () => {
+  const { showAlert } = useAlertPopup();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [panel, setPanel] = useState("camera");
@@ -195,7 +197,10 @@ const Checkin = () => {
         }, 1000);
       }, 2000);
     } catch (error) {
-      alert("Tidak dapat mengakses kamera. Pastikan izin kamera diberikan.");
+      showAlert("Tidak dapat mengakses kamera. Pastikan izin kamera diberikan.", {
+        type: "warning",
+        title: "Akses kamera ditolak",
+      });
       console.error(error);
     }
   };
@@ -281,7 +286,10 @@ const Checkin = () => {
         err?.response?.msg ??
         err.message ??
         "Terjadi kesalahan.";
-      alert(`Gagal menganalisis foto: ${errMsg}`);
+      showAlert(`Gagal menganalisis foto: ${errMsg}`, {
+        type: "error",
+        title: "Analisis foto gagal",
+      });
       setPanel("preview");
     }
   };

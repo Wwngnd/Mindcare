@@ -7,6 +7,7 @@ import StressLoadingPanel from "../../components/stress/StressLoadingPanel";
 import StressQuizPanel from "../../components/stress/StressQuizPanel";
 import StressResultPanel from "../../components/stress/StressResultPanel";
 import stressQuestions from "../../data/stressQuestions";
+import { useAlertPopup } from "../../hooks/useAlertPopup";
 import { apiRequest } from "../../lib/api";
 import { readAppData, writeUserData } from "../../lib/storage";
 
@@ -53,6 +54,7 @@ const mapAnswersToKuesionerPayload = (answers) => {
 };
 
 const StressCheck = () => {
+  const { showAlert } = useAlertPopup();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [panel, setPanel] = useState("intro");
   const [currentQ, setCurrentQ] = useState(0);
@@ -82,7 +84,7 @@ const StressCheck = () => {
 
   const nextQuestion = () => {
     if (answers[currentQ] === null) {
-      alert("Silakan pilih jawaban!");
+      showAlert("Silakan pilih jawaban!", { type: "warning", title: "Jawaban belum lengkap" });
       return;
     }
     if (currentQ < stressQuestions.length - 1) {
@@ -116,7 +118,10 @@ const StressCheck = () => {
         window.scrollTo({ top: 0, behavior: "smooth" });
       })
       .catch((err) => {
-        alert(err?.message || "Gagal mengirim kuesioner.");
+        showAlert(err?.message || "Gagal mengirim kuesioner.", {
+          type: "error",
+          title: "Kuesioner gagal dikirim",
+        });
         setPanel("quiz");
       });
   };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FiMenu } from "react-icons/fi";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -10,6 +10,7 @@ import ExerciseSelectPanel from "../../components/exercise/ExerciseSelectPanel";
 import ExerciseSummaryPanel from "../../components/exercise/ExerciseSummaryPanel";
 import ExerciseTrackingPanel from "../../components/exercise/ExerciseTrackingPanel";
 import AppSidebar from "../../components/layout/AppSidebar";
+import { useAlertPopup } from "../../hooks/useAlertPopup";
 import { createOlahraga, getMyOlahraga } from "../../lib/api";
 
 const haversine = (lat1, lon1, lat2, lon2) => {
@@ -28,10 +29,37 @@ const formatTimer = (seconds) => {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 };
 
+const GPS_OPTIONS = {
+  enableHighAccuracy: true,
+  maximumAge: 1000,
+  timeout: 15000,
+};
+
+const MAX_DISTANCE_ACCURACY_M = 45;
+const MAX_DISPLAY_ACCURACY_M = 100;
+const MAX_SPEED_KMH = 45;
+const SMOOTHING_ALPHA = 0.35;
+
+const smoothPoint = (prev, next) => {
+  if (!prev) return next;
+  return {
+    lat: prev.lat + (next.lat - prev.lat) * SMOOTHING_ALPHA,
+    lng: prev.lng + (next.lng - prev.lng) * SMOOTHING_ALPHA,
+  };
+};
+
+const getMinDistanceThresholdKm = (accuracyMeters) => {
+  const dynamicKm = (accuracyMeters ?? 0) / 1000 * 0.5;
+  return Math.max(0.002, Math.min(0.015, dynamicKm));
+};
+
 const Exercise = () => {
+  const { showAlert } = useAlertPopup();
   const timerRef = useRef(null);
   const watchRef = useRef(null);
   const lastPositionRef = useRef(null);
+  const smoothedPositionRef = useRef(null);
+  const weakSignalNoticeRef = useRef(false);
   const pausedRef = useRef(false);
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -48,8 +76,8 @@ const Exercise = () => {
   const [showEndModal, setShowEndModal] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [currentCoords, setCurrentCoords] = useState(null);
+  const [gpsAccuracy, setGpsAccuracy] = useState(null);
   const [history, setHistory] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     pausedRef.current = isPaused;
@@ -57,21 +85,12 @@ const Exercise = () => {
 
   const fetchHistory = async () => {
     try {
-      setLoadingHistory(true);
       const res = await getMyOlahraga();
       setHistory(res?.payload?.olahraga || []);
     } catch (err) {
       console.error("Failed to fetch history:", err);
-    } finally {
-      setLoadingHistory(false);
     }
   };
-
-  useEffect(() => {
-    if (panel === "history") {
-      fetchHistory();
-    }
-  }, [panel]);
 
   useEffect(() => {
     return () => {
@@ -81,6 +100,9 @@ const Exercise = () => {
         mapRef.current.remove();
         mapRef.current = null;
       }
+      lastPositionRef.current = null;
+      smoothedPositionRef.current = null;
+      weakSignalNoticeRef.current = false;
     };
   }, []);
 
@@ -90,8 +112,23 @@ const Exercise = () => {
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      () => setGpsStatus("ready"),
-      () => setGpsStatus("denied"),
+      (pos) => {
+        const accuracy = Number(pos?.coords?.accuracy);
+        setGpsAccuracy(Number.isFinite(accuracy) ? Math.round(accuracy) : null);
+        setGpsStatus(
+          Number.isFinite(accuracy) && accuracy <= MAX_DISTANCE_ACCURACY_M
+            ? "ready"
+            : "weak",
+        );
+      },
+      (error) => {
+        if (error?.code === 1) {
+          setGpsStatus("denied");
+        } else {
+          setGpsStatus("weak");
+        }
+      },
+      GPS_OPTIONS,
     );
   };
 
@@ -101,6 +138,9 @@ const Exercise = () => {
       setGpsStatus("checking");
       checkGPSPermission();
     }
+    if (nextPanel === "history") {
+      fetchHistory();
+    }
   };
 
   const selectActivity = (activity) => {
@@ -109,13 +149,23 @@ const Exercise = () => {
   };
 
   const startTracking = () => {
-    if (gpsStatus !== "ready") return;
+    if (gpsStatus === "checking" || gpsStatus === "denied") return;
+    if (gpsStatus === "weak") {
+      showAlert("Sinyal GPS masih lemah. Tracking tetap dimulai, tapi akurasi bisa kurang stabil.", {
+        type: "warning",
+        title: "Akurasi GPS",
+      });
+    }
+
     setSeconds(0);
     setDistance(0);
     setIsPaused(false);
     setMapReady(false);
     setCurrentCoords(null);
+    setGpsAccuracy(null);
     lastPositionRef.current = null;
+    smoothedPositionRef.current = null;
+    weakSignalNoticeRef.current = false;
     if (mapRef.current) {
       mapRef.current.remove();
       mapRef.current = null;
@@ -134,18 +184,43 @@ const Exercise = () => {
       watchRef.current = navigator.geolocation.watchPosition(
         (pos) => {
           if (pausedRef.current) return;
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setCurrentCoords({ lat, lng });
+
+          const lat = Number(pos?.coords?.latitude);
+          const lng = Number(pos?.coords?.longitude);
+          const accuracy = Number(pos?.coords?.accuracy);
+          const timestamp = Number(pos?.timestamp || Date.now());
+
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          if (Number.isFinite(accuracy)) {
+            setGpsAccuracy(Math.round(accuracy));
+          }
+
+          if (Number.isFinite(accuracy) && accuracy > MAX_DISPLAY_ACCURACY_M) {
+            if (!weakSignalNoticeRef.current) {
+              weakSignalNoticeRef.current = true;
+              showAlert("Sinyal GPS sangat lemah. Pindah ke area lebih terbuka agar titik lebih akurat.", {
+                type: "warning",
+                title: "GPS belum stabil",
+              });
+            }
+            return;
+          }
+
+          const smoothed = smoothPoint(smoothedPositionRef.current, { lat, lng });
+          smoothedPositionRef.current = smoothed;
+          setCurrentCoords(smoothed);
 
           if (!mapRef.current && mapContainerRef.current) {
-            const map = L.map(mapContainerRef.current, { zoomControl: true }).setView([lat, lng], 17);
+            const map = L.map(mapContainerRef.current, { zoomControl: true }).setView(
+              [smoothed.lat, smoothed.lng],
+              17,
+            );
             L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
               attribution: "&copy; OpenStreetMap contributors",
               maxZoom: 19,
             }).addTo(map);
 
-            userMarkerRef.current = L.circleMarker([lat, lng], {
+            userMarkerRef.current = L.circleMarker([smoothed.lat, smoothed.lng], {
               radius: 8,
               color: "#ffffff",
               weight: 2,
@@ -153,7 +228,7 @@ const Exercise = () => {
               fillOpacity: 1,
             }).addTo(map);
 
-            routeRef.current = L.polyline([[lat, lng]], {
+            routeRef.current = L.polyline([[smoothed.lat, smoothed.lng]], {
               color: "#8B5CF6",
               weight: 5,
               opacity: 0.9,
@@ -164,19 +239,80 @@ const Exercise = () => {
             setMapReady(true);
             setTimeout(() => map.invalidateSize(), 0);
           } else {
-            if (userMarkerRef.current) userMarkerRef.current.setLatLng([lat, lng]);
-            if (routeRef.current) routeRef.current.addLatLng([lat, lng]);
-            if (mapRef.current) mapRef.current.panTo([lat, lng], { animate: true, duration: 0.4 });
+            if (userMarkerRef.current) {
+              userMarkerRef.current.setLatLng([smoothed.lat, smoothed.lng]);
+            }
+            if (mapRef.current) {
+              mapRef.current.panTo([smoothed.lat, smoothed.lng], {
+                animate: true,
+                duration: 0.4,
+              });
+            }
           }
 
-          if (lastPositionRef.current) {
-            const d = haversine(lastPositionRef.current.lat, lastPositionRef.current.lng, lat, lng);
-            if (d > 0.002) setDistance((prev) => prev + d);
+          if (!Number.isFinite(accuracy) || accuracy > MAX_DISTANCE_ACCURACY_M) {
+            if (!weakSignalNoticeRef.current) {
+              weakSignalNoticeRef.current = true;
+              showAlert("Sinyal GPS belum stabil. Jarak sementara ditahan sampai akurasi membaik.", {
+                type: "warning",
+                title: "Akurasi rendah",
+              });
+            }
+            return;
           }
-          lastPositionRef.current = { lat, lng };
+
+          const last = lastPositionRef.current;
+          if (!last) {
+            lastPositionRef.current = {
+              lat: smoothed.lat,
+              lng: smoothed.lng,
+              timestamp,
+              accuracy,
+            };
+            return;
+          }
+
+          const deltaHours = (timestamp - last.timestamp) / (1000 * 3600);
+          if (!Number.isFinite(deltaHours) || deltaHours <= 0) return;
+
+          const d = haversine(last.lat, last.lng, smoothed.lat, smoothed.lng);
+          const minDistance = getMinDistanceThresholdKm(Math.max(accuracy, last.accuracy ?? accuracy));
+          const speedKmh = d / deltaHours;
+
+          if (d < minDistance || speedKmh > MAX_SPEED_KMH) {
+            return;
+          }
+
+          if (routeRef.current) {
+            routeRef.current.addLatLng([smoothed.lat, smoothed.lng]);
+          }
+          setDistance((prev) => prev + d);
+          lastPositionRef.current = {
+            lat: smoothed.lat,
+            lng: smoothed.lng,
+            timestamp,
+            accuracy,
+          };
         },
-        () => undefined,
-        { enableHighAccuracy: true },
+        (error) => {
+          if (error?.code === 1) {
+            setGpsStatus("denied");
+            showAlert("Izin lokasi dicabut saat tracking berjalan.", {
+              type: "error",
+              title: "GPS terputus",
+            });
+            return;
+          }
+
+          if (!weakSignalNoticeRef.current) {
+            weakSignalNoticeRef.current = true;
+            showAlert("Sinyal GPS sedang bermasalah. Coba bergerak ke area terbuka.", {
+              type: "warning",
+              title: "GPS bermasalah",
+            });
+          }
+        },
+        GPS_OPTIONS,
       );
     }
   };
@@ -194,6 +330,8 @@ const Exercise = () => {
     timerRef.current = null;
     watchRef.current = null;
     lastPositionRef.current = null;
+    smoothedPositionRef.current = null;
+    weakSignalNoticeRef.current = false;
     userMarkerRef.current = null;
     routeRef.current = null;
     setShowEndModal(false);
@@ -203,6 +341,7 @@ const Exercise = () => {
     setIsPaused(false);
     setMapReady(false);
     setCurrentCoords(null);
+    setGpsAccuracy(null);
     showPanel("select");
   };
 
@@ -232,7 +371,10 @@ const Exercise = () => {
     } catch (err) {
       console.error("Failed to save exercise:", err);
       const msg = err.response?.msg || err.message || "Terjadi kesalahan.";
-      alert(`Gagal menyimpan data olahraga: ${msg}`);
+      showAlert(`Gagal menyimpan data olahraga: ${msg}`, {
+        type: "error",
+        title: "Gagal menyimpan olahraga",
+      });
     }
   };
 
@@ -295,6 +437,7 @@ const Exercise = () => {
                 distance={distance}
                 isPaused={isPaused}
                 currentCoords={currentCoords}
+                gpsAccuracy={gpsAccuracy}
                 mapContainerRef={mapContainerRef}
                 onPause={pauseTracking}
                 onResume={resumeTracking}
