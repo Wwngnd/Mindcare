@@ -210,3 +210,16 @@ export async function getOlahragaStatistik() {
 export async function getOlahragaStatistikPerJenis() {
   return apiRequest("/api/olahraga/statistik-per-jenis");
 }
+
+/**
+ * POST /api/match-route
+ * Kirim array koordinat GPS, terima GeoJSON rute yang sudah di-snap ke jalan
+ * @param {Array<{lat: number, lng: number}>} coords
+ */
+export async function matchRoute(coords) {
+  return apiRequest("/api/match-route", {
+    method: "POST",
+    body: { coords },
+  });
+}
+

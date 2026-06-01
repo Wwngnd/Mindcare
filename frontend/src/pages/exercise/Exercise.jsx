@@ -11,7 +11,7 @@ import ExerciseSummaryPanel from "../../components/exercise/ExerciseSummaryPanel
 import ExerciseTrackingPanel from "../../components/exercise/ExerciseTrackingPanel";
 import AppSidebar from "../../components/layout/AppSidebar";
 import { useAlertPopup } from "../../hooks/useAlertPopup";
-import { createOlahraga, getMyOlahraga } from "../../lib/api";
+import { createOlahraga, getMyOlahraga, matchRoute } from "../../lib/api";
 
 const haversine = (lat1, lon1, lat2, lon2) => {
   const R = 6371;
@@ -65,6 +65,7 @@ const Exercise = () => {
   const mapRef = useRef(null);
   const userMarkerRef = useRef(null);
   const routeRef = useRef(null);
+  const routePointsRef = useRef([]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [panel, setPanel] = useState("select");
@@ -78,6 +79,8 @@ const Exercise = () => {
   const [currentCoords, setCurrentCoords] = useState(null);
   const [gpsAccuracy, setGpsAccuracy] = useState(null);
   const [history, setHistory] = useState([]);
+  const [matchedGeoJSON, setMatchedGeoJSON] = useState(null);
+  const [rawPoints, setRawPoints] = useState([]);
 
   useEffect(() => {
     pausedRef.current = isPaused;
@@ -166,6 +169,9 @@ const Exercise = () => {
     lastPositionRef.current = null;
     smoothedPositionRef.current = null;
     weakSignalNoticeRef.current = false;
+    routePointsRef.current = [];
+    setMatchedGeoJSON(null);
+    setRawPoints([]);
     if (mapRef.current) {
       mapRef.current.remove();
       mapRef.current = null;
@@ -204,6 +210,11 @@ const Exercise = () => {
               });
             }
             return;
+          }
+
+          // ─── Simpan titik akurat (≤ 20 m) untuk map matching ────────────
+          if (Number.isFinite(accuracy) && accuracy <= 20) {
+            routePointsRef.current.push({ lat, lng });
           }
 
           const smoothed = smoothPoint(smoothedPositionRef.current, { lat, lng });
@@ -358,14 +369,32 @@ const Exercise = () => {
 
     const payload = {
       jenis: typeMapping[selectedActivity?.name] || "lari",
-      jarak_km: Math.max(0.01, Number(distance.toFixed(2))), // Minimal 0.01 agar lolos Joi positive()
+      jarak_km: Math.max(0.01, Number(distance.toFixed(2))),
       durasi_menit: Math.max(1, Math.floor(seconds / 60)),
-      tanggal: new Date().toISOString().split("T")[0], // ✅ Format YYYY-MM-DD untuk kolom DATE MySQL
+      tanggal: new Date().toISOString().split("T")[0],
       rute_maps: []
     };
 
     try {
       await createOlahraga(payload);
+
+      // ─── Map Matching via OSRM ────────────────────────────────────────────
+      const collectedPoints = [...routePointsRef.current];
+      setRawPoints(collectedPoints);
+
+      if (collectedPoints.length >= 2) {
+        try {
+          const matchRes = await matchRoute(collectedPoints);
+          setMatchedGeoJSON(matchRes?.payload?.geometry ?? null);
+        } catch (matchErr) {
+          console.warn("Map matching gagal, rute raw digunakan:", matchErr?.message);
+          setMatchedGeoJSON(null);
+        }
+      } else {
+        setMatchedGeoJSON(null);
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       setShowEndModal(false);
       showPanel("summary");
     } catch (err) {
@@ -448,6 +477,8 @@ const Exercise = () => {
               <ExerciseSummaryPanel
                 durationText={`${Math.floor(seconds / 60)}m`}
                 distance={distance}
+                matchedGeoJSON={matchedGeoJSON}
+                rawPoints={rawPoints}
                 onBack={() => showPanel("select")}
               />
             ) : null}

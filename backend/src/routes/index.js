@@ -7,6 +7,7 @@ import kuesionerRouter from "./kuesionerRouter.js";
 import olahragaRouter from "./olahragaRouter.js";
 import stressScanRouter from "./stressScanRouter.js";
 import bookRouter from "./bookRouter.js";
+import matchRouteRouter from "./matchRouteRouter.js";
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ const routes = [
     { path: "/olahraga", handler: olahragaRouter },
     { path: "/stress-scan", handler: stressScanRouter },
     { path: "/books", handler: bookRouter },
+    { path: "/match-route", handler: matchRouteRouter },
 ];
 
 routes.forEach(({ path, handler }) => router.use(path, handler));
