@@ -16,7 +16,20 @@ const PORT = process.env.PORT || 9000;
 const HOST = process.env.HOST || "localhost";
 
 async function init() {
-    app.use(cors({ credentials: true, origin: process.env.ALLOWED_ORIGINS }));
+    app.use(cors({
+        credentials: true,
+        origin: function (origin, callback) {
+            const allowed = [
+                /^https:\/\/capstone-project-mindcare[\w-]*\.vercel\.app$/,
+                /^http:\/\/localhost:\d+$/,
+            ];
+            if (!origin || allowed.some(pattern => pattern.test(origin))) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        }
+    }));
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
     app.use(cookieParser());
