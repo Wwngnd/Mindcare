@@ -14,7 +14,7 @@ const ExerciseTrackingPanel = ({
 }) => {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div className="relative z-0 h-[350px] overflow-hidden rounded-3xl border-2 border-[#1E293B]">
+      <div className="relative z-0 h-87.5 overflow-hidden rounded-3xl border-2 border-[#1E293B]">
         {!mapReady ? (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#F1F5F9]">
             <FiLoader className="mb-2 animate-spin text-[#8B5CF6]" size={36} />

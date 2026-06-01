@@ -89,7 +89,7 @@ const ExerciseSummaryPanel = ({ durationText, distance, matchedGeoJSON, rawPoint
               <span className="text-[11px] text-[#64748B] font-medium">(rute raw — map matching tidak tersedia)</span>
             )}
           </div>
-          <div className="h-[280px] bg-slate-100">
+          <div className="h-70 bg-slate-100">
             <SummaryMap matchedGeoJSON={matchedGeoJSON} rawPoints={rawPoints} />
           </div>
         </div>

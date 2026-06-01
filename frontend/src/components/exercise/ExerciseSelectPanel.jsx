@@ -12,10 +12,10 @@ const ExerciseSelectPanel = ({ onSelect, onOpenHistory }) => {
           <button
             key={activity.name}
             onClick={() => onSelect(activity)}
-            className="flex min-h-[170px] w-full max-w-[210px] items-center justify-center rounded-[14px] border border-[#656575] bg-[#f7f7f9] transition-all hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(15,23,42,0.12)]"
+            className="flex min-h-42.5 w-full max-w-52.5 items-center justify-center rounded-[14px] border border-[#656575] bg-[#f7f7f9] transition-all hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(15,23,42,0.12)]"
           >
             <div
-              className={`flex h-[72px] w-[112px] items-center justify-center border-2 border-[#2a2a35] text-sm font-bold text-[#2b2b37] shadow-[2px_2px_0_#2a2a35] ${activity.color}`}
+              className={`flex h-18 w-28 items-center justify-center border-2 border-[#2a2a35] text-sm font-bold text-[#2b2b37] shadow-[2px_2px_0_#2a2a35] ${activity.color}`}
             >
               {activity.name}
             </div>

@@ -9,7 +9,7 @@ const CheckinPreviewPanel = ({ imageSrc, onRetake, onConfirm }) => {
       </div>
 
       <div className="flex flex-col items-center p-10">
-        <div className="relative mb-8 flex aspect-[4/3] w-full max-w-md items-center justify-center overflow-hidden bg-[#1E293B]">
+        <div className="relative mb-8 flex aspect-4/3 w-full max-w-md items-center justify-center overflow-hidden bg-[#1E293B]">
           <img src={imageSrc} className="h-full w-full object-cover" alt="Preview" />
         </div>
 

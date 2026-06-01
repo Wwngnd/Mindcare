@@ -8,7 +8,7 @@ const JournalWritePanel = ({
   onSave,
 }) => {
   return (
-    <div className="relative rounded-[32px] border border-gray-200 bg-white p-8 shadow-sm">
+    <div className="relative rounded-4xl border border-gray-200 bg-white p-8 shadow-sm">
       <div className="absolute right-8 top-6 flex items-center gap-3">
         <button
           type="button"
@@ -32,7 +32,7 @@ const JournalWritePanel = ({
           value={content}
           onChange={(event) => onContentChange(event.target.value)}
           placeholder={"Mulai menulis di sini... ✍️\n\nCeritakan apa yang kamu rasakan hari ini."}
-          className="h-[400px] w-full resize-none py-4 leading-relaxed text-gray-600 outline-none placeholder:text-gray-300"
+          className="h-100 w-full resize-none py-4 leading-relaxed text-gray-600 outline-none placeholder:text-gray-300"
         />
       </div>
     </div>

@@ -73,8 +73,8 @@ export const AlertPopupProvider = ({ children }) => {
       {children}
 
       {popup.open ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-[24px] border-4 border-[#1E293B] bg-[#FFFDF5] p-6 shadow-[8px_8px_0px_0px_#1E293B]">
+        <div className="fixed inset-0 z-120 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border-4 border-[#1E293B] bg-[#FFFDF5] p-6 shadow-[8px_8px_0px_0px_#1E293B]">
             <div
               className={`mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold ${meta.badgeClass}`}
             >
@@ -89,7 +89,7 @@ export const AlertPopupProvider = ({ children }) => {
             <button
               type="button"
               onClick={closeAlert}
-              className={`w-full rounded-[12px] border-2 border-[#1E293B] py-3 text-center font-bold text-white shadow-[4px_4px_0px_0px_#1E293B] transition-all hover:-translate-y-0.5 ${meta.buttonClass}`}
+              className={`w-full rounded-xl border-2 border-[#1E293B] py-3 text-center font-bold text-white shadow-[4px_4px_0px_0px_#1E293B] transition-all hover:-translate-y-0.5 ${meta.buttonClass}`}
             >
               {popup.buttonLabel}
             </button>

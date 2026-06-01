@@ -35,7 +35,7 @@ const BookDetailModal = ({ book, onClose }) => {
   const categoryKeys = book.categoryKeys || [book.category];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/50 p-4 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-white/50 p-4 backdrop-blur-[2px]">
       <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border-2 border-[#1E293B] bg-white shadow-[8px_8px_0px_0px_#E2E8F0]">
         <div className="relative">
           <div className="flex h-56 w-full items-center justify-center rounded-t-3xl border-b-2 border-[#1E293B] bg-[#8B5CF6]/10">

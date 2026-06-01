@@ -1,4 +1,4 @@
-const formatDuration = (seconds) => `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+// const formatDuration = (seconds) => `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 
 const ExerciseHistoryPanel = ({ history, onBack }) => {
   return (

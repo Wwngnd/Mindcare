@@ -7,7 +7,6 @@ import BooksFilterBar from "../../components/books/BooksFilterBar";
 import BooksGrid from "../../components/books/BooksGrid";
 import BooksSessionTimer from "../../components/books/BooksSessionTimer";
 import AppSidebar from "../../components/layout/AppSidebar";
-import booksData from "../../data/booksData";
 import { useAlertPopup } from "../../hooks/useAlertPopup";
 import {
   createBookRead,
@@ -22,13 +21,17 @@ import { readUserData, writeUserData } from "../../lib/storage";
 const normalizeAiBooks = (storedBooks) => (
   Array.isArray(storedBooks)
     ? storedBooks
-      .filter((book) => book?.id && book?.title)
+      .filter((book) => book?.id && (book?.title || book?.judul))
       .map((book) => {
-        const rawCategory = String(book.categoriesRaw || book.category || "").trim();
+        const title = book.title || book.judul;
+        const author = book.author || book.penulis;
+        const rawCategory = String(book.categoriesRaw || book.category || book.kategori || "").trim();
         const derivedKeys = pickBookCategoryKeys(rawCategory);
         const mergedKeys = [...new Set(["ai_recommendation", ...derivedKeys, ...(book.categoryKeys || [])])];
         return {
           ...book,
+          title,
+          author,
           categoryKeys: mergedKeys,
           category: book.category || rawCategory || "Self Help",
           categoriesRaw: rawCategory || book.categoriesRaw || "",
@@ -83,20 +86,23 @@ const Books = () => {
     let mounted = true;
 
     const syncAiBooks = async () => {
-      const localBooks = normalizeAiBooks(readUserData("ai_books", []));
-      if (mounted) setAiBooks(localBooks);
-
       try {
         const res = await getMyBookRecommendations();
         const apiBooks = mapRecommendedBooksFromApi(res?.payload?.rekomendasi_buku || []);
-        const merged = normalizeAiBooks([...apiBooks, ...localBooks]);
+        const normalized = normalizeAiBooks(apiBooks);
 
         if (!mounted) return;
-        setAiBooks(merged);
-        writeUserData("ai_books", merged);
+        setAiBooks(normalized);
+        writeUserData("ai_books", normalized);
       } catch (err) {
         if (err?.status !== 404) {
           console.error("Gagal mengambil rekomendasi buku dari backend:", err);
+        } else {
+          // Jika 404 (belum ada kuesioner), kosongkan local storage agar sinkron
+          if (mounted) {
+            setAiBooks([]);
+            writeUserData("ai_books", []);
+          }
         }
       }
     };
@@ -108,38 +114,10 @@ const Books = () => {
   }, []);
 
   const filteredBooks = useMemo(() => {
-    const mergedByKey = new Map();
-
-    booksData.forEach((book) => {
-      const title = String(book.title || "").trim().toLowerCase();
-      const author = String(book.author || "").trim().toLowerCase();
-      const key = `${title}::${author}`;
-      mergedByKey.set(key, { ...book, id: `CAT_${book.id}` });
-    });
-
-    aiBooks.forEach((book) => {
-      const title = String(book.title || "").trim().toLowerCase();
-      const author = String(book.author || "").trim().toLowerCase();
-      const key = `${title}::${author}`;
-      const existing = mergedByKey.get(key);
-
-      if (!existing) {
-        mergedByKey.set(key, book);
-        return;
-      }
-
-      mergedByKey.set(key, {
-        ...existing,
-        ...book,
-        categoryKeys: [...new Set([...(existing.categoryKeys || []), ...(book.categoryKeys || [])])],
-      });
-    });
-
-    const uniqueBooks = Array.from(mergedByKey.values());
     const items =
       currentFilter === "all"
-        ? uniqueBooks
-        : uniqueBooks.filter((book) => (book.categoryKeys || []).includes(currentFilter));
+        ? aiBooks
+        : aiBooks.filter((book) => (book.categoryKeys || []).includes(currentFilter));
 
     return items.sort((a, b) => {
       const aiPriority = Number((b.categoryKeys || []).includes("ai_recommendation")) - Number((a.categoryKeys || []).includes("ai_recommendation"));
@@ -147,6 +125,7 @@ const Books = () => {
       return (Number(b.match) || 0) - (Number(a.match) || 0);
     });
   }, [currentFilter, aiBooks]);
+
 
   useEffect(() => {
     if (!timerRunning) return undefined;
