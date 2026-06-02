@@ -1,0 +1,34 @@
+tags:
+  - name: Match Route
+    description: Pencocokan rute koordinat
+
+paths:
+  /match-route:
+    post:
+      tags: [Match Route]
+      summary: Mencocokkan rute berdasarkan koordinat
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                coords:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      lat:
+                        type: number
+                        example: -6.2088
+                      lng:
+                        type: number
+                        example: 106.8456
+      responses:
+        "200":
+          description: Berhasil mencocokkan rute
+        "401":
+          description: Unauthorized

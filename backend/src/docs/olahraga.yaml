@@ -6,7 +6,7 @@ paths:
   /olahraga:
     get:
       tags: [Olahraga]
-      summary: Ambil rekomendasi olahraga
+      summary: Ambil semua log olahraga (Admin Only)
       security:
         - bearerAuth: []
       responses:
@@ -14,3 +14,113 @@ paths:
           description: Berhasil
         "401":
           description: Unauthorized
+        "403":
+          description: Forbidden
+
+    post:
+      tags: [Olahraga]
+      summary: Simpan log olahraga baru
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nama_olahraga, durasi, kalori, tanggal]
+              properties:
+                nama_olahraga:
+                  type: string
+                  example: Lari
+                durasi:
+                  type: integer
+                  example: 30
+                  description: Durasi dalam menit
+                kalori:
+                  type: integer
+                  example: 200
+                tanggal:
+                  type: string
+                  format: date
+                  example: "2026-06-02"
+      responses:
+        "201":
+          description: Berhasil disimpan
+        "401":
+          description: Unauthorized
+
+  /olahraga/me:
+    get:
+      tags: [Olahraga]
+      summary: Ambil semua log olahraga milik user login
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Berhasil
+        "401":
+          description: Unauthorized
+
+  /olahraga/statistik:
+    get:
+      tags: [Olahraga]
+      summary: Ambil statistik total durasi dan kalori
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Berhasil
+        "401":
+          description: Unauthorized
+
+  /olahraga/statistik-per-jenis:
+    get:
+      tags: [Olahraga]
+      summary: Ambil statistik durasi per jenis olahraga
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Berhasil
+        "401":
+          description: Unauthorized
+
+  /olahraga/{id}:
+    get:
+      tags: [Olahraga]
+      summary: Ambil detail log olahraga berdasarkan ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Berhasil
+        "401":
+          description: Unauthorized
+        "404":
+          description: Log tidak ditemukan
+
+    delete:
+      tags: [Olahraga]
+      summary: Hapus log olahraga berdasarkan ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Berhasil dihapus
+        "401":
+          description: Unauthorized
+        "404":
+          description: Log tidak ditemukan

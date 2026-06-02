@@ -1,0 +1,88 @@
+tags:
+  - name: Books
+    description: Manajemen sesi membaca dan riwayat buku
+
+paths:
+  /books/sessions:
+    post:
+      tags: [Books]
+      summary: Simpan sesi membaca buku baru
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [judul, penulis, durasi, tanggal]
+              properties:
+                judul:
+                  type: string
+                  example: "Atomic Habits"
+                penulis:
+                  type: string
+                  example: "James Clear"
+                durasi:
+                  type: integer
+                  example: 45
+                  description: Durasi dalam menit
+                tanggal:
+                  type: string
+                  format: date
+                  example: "2026-06-02"
+      responses:
+        "201":
+          description: Sesi berhasil disimpan
+        "401":
+          description: Unauthorized
+
+  /books/sessions/me:
+    get:
+      tags: [Books]
+      summary: Ambil semua sesi membaca milik user login
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Berhasil
+        "401":
+          description: Unauthorized
+
+  /books/reads:
+    post:
+      tags: [Books]
+      summary: Tandai buku sebagai sudah dibaca / simpan riwayat baca
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [judul, penulis]
+              properties:
+                judul:
+                  type: string
+                  example: "The Psychology of Money"
+                penulis:
+                  type: string
+                  example: "Morgan Housel"
+      responses:
+        "201":
+          description: Berhasil disimpan
+        "401":
+          description: Unauthorized
+
+  /books/reads/me:
+    get:
+      tags: [Books]
+      summary: Ambil semua riwayat buku yang dibaca milik user login
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Berhasil
+        "401":
+          description: Unauthorized

@@ -70,3 +70,31 @@ paths:
                     type: string
         "401":
           description: Email atau password salah
+  /auth/token:
+    get:
+      tags: [Auth]
+      summary: Refresh Access Token
+      description: Mendapatkan access token baru menggunakan refresh token dari cookie
+      responses:
+        "200":
+          description: Berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+        "401":
+          description: Refresh token tidak valid atau tidak ada
+  /auth/logout:
+    delete:
+      tags: [Auth]
+      summary: Logout user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logout berhasil
+        "401":
+          description: Unauthorized

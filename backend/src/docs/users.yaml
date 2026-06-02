@@ -1,12 +1,12 @@
 tags:
   - name: Users
-    description: Manajemen data user
+    description: Manajemen data user (Admin Only)
 
 paths:
-  /users/me:
+  /auth/users:
     get:
       tags: [Users]
-      summary: Ambil profil user yang sedang login
+      summary: Ambil semua data user (Admin Only)
       security:
         - bearerAuth: []
       responses:
@@ -14,24 +14,50 @@ paths:
           description: Berhasil
         "401":
           description: Unauthorized
+        "403":
+          description: Forbidden
 
-    put:
+  /auth/users/{id}:
+    get:
       tags: [Users]
-      summary: Update profil user
+      summary: Ambil detail user berdasarkan ID (Admin Only)
       security:
         - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  example: John Doe Updated
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 1
       responses:
         "200":
-          description: Berhasil diupdate
+          description: Berhasil
         "401":
           description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: User tidak ditemukan
+
+    delete:
+      tags: [Users]
+      summary: Hapus user berdasarkan ID (Admin Only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Berhasil dihapus
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: User tidak ditemukan
