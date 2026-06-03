@@ -25,7 +25,7 @@
 <img width="1366" height="685" alt="Journaling" src="https://github.com/user-attachments/assets/c17c25c1-3ad2-43da-82ca-ca3d6d0e20a5" />
 
 ### Olahraga
-<img width="1366" height="685" alt="Journaling" src="https://github.com/user-attachments/assets/2dafe377-dec3-4cc3-a511-8845ef8fdbe7" />
+<img width="1366" height="599" alt="screencapture-capstone-project-mindcare-tfi1-vercel-app-exercise-2026-06-03-19_26_35" src="https://github.com/user-attachments/assets/dba75523-603a-4e3e-9065-0b407382ecb7" />
 
 ### Rekomendasi Buku
 <img width="1354" height="600" alt="Buku" src="https://github.com/user-attachments/assets/23fa7f38-52c9-4bad-8da9-5c049582c061" />
