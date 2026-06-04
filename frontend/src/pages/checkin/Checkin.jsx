@@ -250,7 +250,7 @@ const Checkin = () => {
       });
       return () => cancelAnimationFrame(raf);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panel]);
 
   // ─── Helper: ambil payload dari berbagai struktur response ────────────────
@@ -357,16 +357,6 @@ const Checkin = () => {
 
           {/* Panel content */}
           <div className="mx-auto max-w-4xl p-8 lg:p-12">
-            {featureStarted ? (
-              <div className="mb-6 flex justify-end">
-                <button
-                  onClick={cancelCheckin}
-                  className="rounded-xl border-2 border-[#1E293B] bg-white px-5 py-3 font-bold text-[#1E293B] shadow-[4px_4px_0px_0px_#1E293B]"
-                >
-                  Batalkan
-                </button>
-              </div>
-            ) : null}
             {panel === "camera" && (
               <CheckinCameraPanel
                 videoRef={videoRef}
