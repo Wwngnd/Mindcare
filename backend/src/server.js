@@ -20,6 +20,7 @@ async function init() {
         credentials: true,
         origin: function (origin, callback) {
             const allowed = [
+                /^https:\/\/.*\.netlify\.app$/,
                 /^https:\/\/capstone-project-mindcare[\w-]*\.vercel\.app$/,
                 /^http:\/\/localhost:\d+$/,
             ];
