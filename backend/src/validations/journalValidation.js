@@ -10,9 +10,12 @@ export const journalSchema = Joi.object({
         "string.empty": "Isi journal tidak boleh kosong.",
         "any.required": "Isi journal wajib diisi."
     }),
-    durasi: Joi.number().required().messages({
+    durasi: Joi.number().integer().min(0).max(255).required().messages({
         "number.empty": "Durasi tidak boleh kosong.",
         "number.base": "Durasi harus berupa angka.",
+        "number.integer": "Durasi harus berupa bilangan bulat.",
+        "number.min": "Durasi minimal 0 menit.",
+        "number.max": "Durasi maksimal 255 menit.",
         "any.required": "Durasi wajib diisi."
     })
 });
@@ -25,7 +28,10 @@ export const updateJournalSchema = Joi.object({
     deskripsi: Joi.string().messages({
         "string.empty": "Isi journal tidak boleh kosong."
     }),
-    durasi: Joi.number().messages({
-        "number.base": "Durasi harus berupa angka."
+    durasi: Joi.number().integer().min(0).max(255).messages({
+        "number.base": "Durasi harus berupa angka.",
+        "number.integer": "Durasi harus berupa bilangan bulat.",
+        "number.min": "Durasi minimal 0 menit.",
+        "number.max": "Durasi maksimal 255 menit."
     })
 });

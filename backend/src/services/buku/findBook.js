@@ -48,13 +48,3 @@ export const findBookEnrichment = async (judul, penulis, fallbackThumbnail = nul
         deskripsi: deskripsi ?? defaultDesc ?? buildDefaultDescription(judul, penulis)
     };
 };
-
-export const findBookThumbnail = async (judul, penulis, fallbackThumbnail = null) => {
-    const result = await findBookEnrichment(judul, penulis, fallbackThumbnail);
-    return result.thumbnail;
-};
-
-export const findBookDescription = async (judul, penulis, defaultDesc = null) => {
-    const result = await findBookEnrichment(judul, penulis, null, defaultDesc);
-    return result.deskripsi;
-};

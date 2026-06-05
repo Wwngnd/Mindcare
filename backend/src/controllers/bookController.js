@@ -2,6 +2,26 @@ import bookServices from "../services/bookServices.js";
 import response from "../utils/response.js";
 
 const bookController = {
+    async proxyBookCover(req, res, next) {
+        try {
+            const cover = await bookServices.fetchBookCover(req.query.url);
+            res.setHeader("Content-Type", cover.contentType);
+            res.setHeader("Cache-Control", "public, max-age=86400");
+            return res.status(200).send(cover.buffer);
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    async getGeneralBooks(req, res, next) {
+        try {
+            const books = await bookServices.getGeneralBookRecommendations(req.query.limit);
+            return response.success(res, 200, "Rekomendasi buku umum berhasil diambil.", { books });
+        } catch (error) {
+            next(error);
+        }
+    },
+
     async createBookSession(req, res, next) {
         try {
             const session = await bookServices.createBookSession(req.userId, req.body);

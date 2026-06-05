@@ -1,9 +1,12 @@
 import { Link } from "react-router-dom";
-import { FiBookOpen, FiCheckCircle, FiStar } from "react-icons/fi";
+import { FiActivity, FiBookOpen, FiCheckCircle, FiStar } from "react-icons/fi";
 
 import BookCoverImage from "../books/BookCoverImage";
 
 const StressResultPanel = ({ result, onRetry }) => {
+  const stressPercent = Number(result.stressPercent);
+  const hasStressPercent = Number.isFinite(stressPercent);
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="rounded-3xl border-2 border-[#1E293B] bg-white p-8 shadow-[6px_6px_0px_0px_#CBD5E1]">
@@ -14,9 +17,19 @@ const StressResultPanel = ({ result, onRetry }) => {
           <div>
             <h2 className="mb-2 text-2xl font-extrabold">Hasil Analisis AI</h2>
             <p className="mb-4 text-sm leading-relaxed text-[#64748B]">{result.insight}</p>
-            <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-100 px-3 py-1 text-xs font-bold text-green-800">
-              <FiCheckCircle size={14} /> Tingkat Kepercayaan AI: {result.confidencePct}%
+            <div className="flex flex-wrap gap-2">
+              {hasStressPercent ? (
+                <div className="inline-flex items-center gap-2 rounded-full border border-purple-200 bg-purple-100 px-3 py-1 text-xs font-bold text-purple-800">
+                  <FiActivity size={14} /> Tingkat Stres: {Math.round(stressPercent)}% - {result.stressCategory}
+                </div>
+              ) : null}
+              <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-100 px-3 py-1 text-xs font-bold text-green-800">
+                <FiCheckCircle size={14} /> Tingkat Kepercayaan AI: {result.confidencePct}%
+              </div>
             </div>
+            {result.stressDescription ? (
+              <p className="mt-3 text-sm leading-relaxed text-[#475569]">{result.stressDescription}</p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -54,6 +67,7 @@ const StressResultPanel = ({ result, onRetry }) => {
                   thumbnail={book.thumbnail}
                   alt={book.title}
                   className="h-full w-full object-cover"
+                  preferResolvedCover
                 />
               </div>
               <div className="mb-2">

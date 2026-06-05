@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   buildBookPlaceholderCover,
@@ -6,13 +6,42 @@ import {
   resolveFallbackBookCover,
 } from "../../lib/bookCoverResolver";
 
-const MISSING_COVER_SENTINEL = "/__mindcare_missing_cover__.png";
-
-const BookCoverImage = ({ title, author, thumbnail, alt, className = "", loading = "lazy" }) => {
+const BookCoverImage = ({
+  title,
+  author,
+  thumbnail,
+  alt,
+  className = "",
+  loading = "lazy",
+  preferResolvedCover = false,
+}) => {
   const placeholder = useMemo(() => buildBookPlaceholderCover(title, author), [title, author]);
-  const initialSrc = normalizeThumbnailUrl(thumbnail) || MISSING_COVER_SENTINEL;
+  const normalizedThumbnail = normalizeThumbnailUrl(thumbnail);
+  const shouldResolveFallbackFirst = preferResolvedCover || !normalizedThumbnail;
+  const initialSrc = shouldResolveFallbackFirst ? placeholder : normalizedThumbnail;
   const [src, setSrc] = useState(initialSrc);
   const hasTriedFallbackRef = useRef(false);
+
+  useEffect(() => {
+    if (!shouldResolveFallbackFirst) return undefined;
+
+    let cancelled = false;
+    hasTriedFallbackRef.current = true;
+
+    resolveFallbackBookCover(title, author)
+      .then((fallback) => {
+        if (cancelled) return;
+        const normalizedFallback = normalizeThumbnailUrl(fallback);
+        setSrc(normalizedFallback || normalizedThumbnail || placeholder);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc(normalizedThumbnail || placeholder);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [author, normalizedThumbnail, placeholder, shouldResolveFallbackFirst, title]);
 
   const handleError = () => {
     if (!src || src.startsWith("data:image/svg+xml")) {
@@ -47,6 +76,7 @@ const BookCoverImage = ({ title, author, thumbnail, alt, className = "", loading
       className={className}
       loading={loading}
       onError={handleError}
+      referrerPolicy="no-referrer"
     />
   );
 };

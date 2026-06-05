@@ -1,10 +1,10 @@
-import fs from "fs/promises";
-import path from "path";
 import kuesionerRepository from "../repositories/kuesionerRepository.js";
 import { getAIRecommendation } from "../helper/predictionHelper.js";
 import { buildAIInput } from "../helper/aiInputBuilder.js";
 import NotFoundError from "../exceptions/NotFoundError.js";
 import { saveAlternatif, saveRekomendasiUtama, saveDistribusi, insertSesi } from "./rekomendasiServices.js";
+import { readMindcareBooksDataset } from "../utils/mindcareBooksDataset.js";
+import stressProgressServices from "./stressProgressServices.js";
 
 const toNumberIfPossible = (value) => {
     if (value === null || value === undefined) {
@@ -12,32 +12,6 @@ const toNumberIfPossible = (value) => {
     }
     const numberValue = Number(value);
     return Number.isNaN(numberValue) ? value : numberValue;
-};
-
-const parseCsvLine = (line) => {
-    const values = [];
-    let current = "";
-    let inQuotes = false;
-
-    for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        const next = line[i + 1];
-
-        if (char === '"' && next === '"') {
-            current += '"';
-            i++;
-        } else if (char === '"') {
-            inQuotes = !inQuotes;
-        } else if (char === "," && !inQuotes) {
-            values.push(current);
-            current = "";
-        } else {
-            current += char;
-        }
-    }
-
-    values.push(current);
-    return values;
 };
 
 const getStressLevelTarget = (tingkatStres) => {
@@ -60,25 +34,7 @@ const getStressCategoryTarget = (penyebabStres = "") => {
 const shuffleBooks = (books) => [...books].sort(() => Math.random() - 0.5);
 
 const getFallbackBooks = async (inputAI, limit = 3) => {
-    const csvPath = path.join(process.cwd(), "src", "data", "mindcare_books_dataset.csv");
-    const csv = await fs.readFile(csvPath, "utf8");
-    const lines = csv.trim().split(/\r?\n/);
-    const headers = parseCsvLine(lines[0]);
-
-    const rows = lines.slice(1).map((line) => {
-        const values = parseCsvLine(line);
-        const row = Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
-        return {
-            judul: row.title,
-            penulis: row.authors,
-            kategori: row.categories,
-            thumbnail: row.thumbnail?.replace("http://", "https://"),
-            deskripsi: row.description,
-            stressLevelTarget: row.stress_level_target,
-            stressCategory: row.stress_category
-        };
-    });
-
+    const rows = await readMindcareBooksDataset();
     const level = getStressLevelTarget(inputAI?.Tingkat_stres ?? inputAI?.["Tingkat stres"]);
     const category = getStressCategoryTarget(inputAI?.Penyebab_stres ?? inputAI?.["Penyebab stres"]);
 
@@ -263,11 +219,18 @@ const createKuesionerWithRekomendasi = async (userId, data) => {
 
     // 7. Ambil ulang hasil rekomendasi dari database
     const storedRekomendasi = await getStoredRekomendasiBySesi(userId, sesiId);
+    const stressAssessment = hasilAI.stress_assessment ?? null;
+    const stressProgress = await stressProgressServices.setBaselineFromKuesioner(userId, kuesioner, stressAssessment);
 
     // 7. Susun response payload
     return {
         kuesioner,
-        rekomendasi: storedRekomendasi
+        rekomendasi: {
+            ...storedRekomendasi,
+            ...(stressAssessment ? { stress_assessment: stressAssessment } : {})
+        },
+        stress_assessment: stressAssessment,
+        stress_progress: stressProgress
     };
 };
 

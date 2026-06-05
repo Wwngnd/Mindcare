@@ -1,58 +1,105 @@
-import { FiCheckCircle, FiSmile, FiZap } from "react-icons/fi";
+import { FiActivity, FiCheckCircle, FiSmile, FiTrendingDown, FiZap } from "react-icons/fi";
 
 const chipClass = "rounded-full px-3 py-1 text-xs font-extrabold";
 
-const formatWeekLabel = (date) =>
-  date.toLocaleDateString("id-ID", {
-    weekday: "short",
-  });
+const formatPercent = (value) => {
+  const percent = Number(value);
+  if (!Number.isFinite(percent)) return "--";
+  return `${Math.round(percent)}%`;
+};
 
-const StatusCards = ({ streakInfo, moodToday, hasCheckIn }) => {
-  const weekItems = Array.isArray(streakInfo?.weekItems) ? streakInfo.weekItems : [];
-  const currentStreak = Number(streakInfo?.current || 0);
-  const longestStreak = Number(streakInfo?.longest || 0);
+const formatActivity = (value) => {
+  const labels = {
+    membaca: "Membaca",
+    journaling: "Journaling",
+    olahraga: "Olahraga",
+  };
+
+  return labels[value] || "Aktivitas";
+};
+
+const getStressTone = (category = "") => {
+  const normalized = String(category).toLowerCase();
+  if (normalized.includes("sangat rendah")) return "text-emerald-700 bg-emerald-100 border-emerald-200";
+  if (normalized === "rendah") return "text-teal-700 bg-teal-100 border-teal-200";
+  if (normalized === "sedang") return "text-amber-700 bg-amber-100 border-amber-200";
+  if (normalized === "tinggi") return "text-orange-700 bg-orange-100 border-orange-200";
+  if (normalized.includes("sangat tinggi")) return "text-red-700 bg-red-100 border-red-200";
+  return "text-[#64748B] bg-[#F1F5F9] border-[#E2E8F0]";
+};
+
+const StatusCards = ({ stressProgress, moodToday, hasCheckIn }) => {
+  const state = stressProgress?.state || null;
+  const recentLogs = Array.isArray(stressProgress?.recent_logs) ? stressProgress.recent_logs : [];
+  const latestLog = recentLogs[0] || null;
+  const currentStress = Number(state?.stress_saat_ini_percent);
+  const hasStressState = Number.isFinite(currentStress);
+  const progressWidth = hasStressState ? Math.min(100, Math.max(0, currentStress)) : 0;
+  const category = state?.kategori_stress || "Belum ada data";
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
       <section className="rounded-xl border-2 border-[#1E293B] bg-white p-6 shadow-[4px_4px_0px_0px_#E2E8F0]">
-        <h3 className="text-3xl font-extrabold text-[#1E293B]">Streak</h3>
-        <p className="mt-2 text-lg leading-relaxed text-[#475569]">
-          Bukan cuma angka, streak bantu Anda membangun kebiasaan pemulihan yang solid dan berkelanjutan.
-        </p>
-
-        <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-          <div className="flex items-end gap-2">
-            <span className="text-6xl font-extrabold leading-none text-[#1E293B]">{currentStreak}</span>
-            <span className="pb-1 text-4xl text-[#F59E0B]" aria-hidden>
-              ⚡
-            </span>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h3 className="text-2xl font-extrabold text-[#1E293B]">Tingkat Stres Saat Ini</h3>
+            <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[#64748B]">
+              Angka terbaru dari kuesioner dan aktivitas yang sudah disimpan.
+            </p>
           </div>
-          <p className="flex items-center gap-2 text-3xl font-extrabold text-[#64748B]">
-            <span aria-hidden>🔥</span>
-            <span className="text-xl font-bold">Streak Terlama</span>
-            <span className="text-[#1E293B]">{longestStreak}</span>
-          </p>
+          <span className={`${chipClass} border ${getStressTone(category)}`}>
+            {category}
+          </span>
         </div>
 
-        <div className="mt-7 rounded-xl bg-[#F8FAFC] p-4">
-          <div className="grid grid-cols-7 gap-2">
-            {weekItems.map((item) => (
-              <div key={item.dateKey} className="flex flex-col items-center gap-2 text-center">
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-full border-4 text-xl font-extrabold transition-all ${
-                    item.active
-                      ? "border-[#F59E0B] bg-[#F59E0B] text-white"
-                      : "border-[#D1D5DB] bg-white text-[#D1D5DB]"
-                  }`}
-                  title={item.fullDateLabel}
-                >
-                  ⚡
-                </div>
-                <span className={`text-sm font-bold ${item.active ? "text-[#334155]" : "text-[#64748B]"}`}>
-                  {formatWeekLabel(item.date)}
-                </span>
-              </div>
-            ))}
+        <div className="mt-7 flex flex-wrap items-end justify-between gap-5">
+          <div className="flex items-end gap-2">
+            <span className="text-6xl font-extrabold leading-none text-[#1E293B]">
+              {formatPercent(state?.stress_saat_ini_percent)}
+            </span>
+            <span className="pb-1 text-sm font-bold uppercase tracking-wide text-[#64748B]">
+              stress
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+            <FiTrendingDown size={18} />
+            {latestLog
+              ? `Turun ${formatPercent(latestLog.penurunan_percent)} dari ${formatActivity(latestLog.aktivitas)}`
+              : "Belum ada penurunan aktivitas"}
+          </div>
+        </div>
+
+        <div className="mt-6 h-4 overflow-hidden rounded-full border border-[#CBD5E1] bg-[#F1F5F9]">
+          <div
+            className="h-full rounded-full bg-[#8B5CF6] transition-all duration-500"
+            style={{ width: `${progressWidth}%` }}
+          />
+        </div>
+
+        {state?.keterangan_stress ? (
+          <p className="mt-4 text-sm font-medium leading-relaxed text-[#475569]">
+            {state.keterangan_stress}
+          </p>
+        ) : null}
+
+        <div className="mt-6 grid grid-cols-1 gap-4 border-t border-[#E2E8F0] pt-5 text-sm sm:grid-cols-3">
+          <div>
+            <p className="font-bold text-[#64748B]">Baseline Kuesioner</p>
+            <p className="mt-1 text-xl font-extrabold text-[#1E293B]">
+              {formatPercent(state?.stress_awal_percent)}
+            </p>
+          </div>
+          <div>
+            <p className="font-bold text-[#64748B]">Stress Terkini</p>
+            <p className="mt-1 text-xl font-extrabold text-[#1E293B]">
+              {formatPercent(state?.stress_saat_ini_percent)}
+            </p>
+          </div>
+          <div>
+            <p className="font-bold text-[#64748B]">Durasi Terakhir</p>
+            <p className="mt-1 text-xl font-extrabold text-[#1E293B]">
+              {latestLog ? `${latestLog.durasi_menit} menit` : "--"}
+            </p>
           </div>
         </div>
       </section>
@@ -70,14 +117,18 @@ const StatusCards = ({ streakInfo, moodToday, hasCheckIn }) => {
         <p className="text-2xl font-extrabold">{moodToday || "--"}</p>
         <p className="mt-1 text-sm font-medium text-[#64748B]">Mood Hari Ini</p>
 
-        <div className="mt-8 space-y-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+        <div className="mt-8 space-y-4 border-t border-[#E2E8F0] pt-5">
           <div className="flex items-center gap-2 text-sm font-semibold text-[#334155]">
             <FiCheckCircle size={16} className={hasCheckIn ? "text-emerald-500" : "text-[#94A3B8]"} />
             Status check-in {hasCheckIn ? "sudah tercatat." : "belum dilakukan."}
           </div>
           <div className="flex items-center gap-2 text-sm text-[#64748B]">
-            <FiZap size={16} className="text-[#8B5CF6]" />
-            Pertahankan streak dengan aktivitas kecil setiap hari.
+            <FiActivity size={16} className="text-[#8B5CF6]" />
+            {hasStressState ? `Kategori stress: ${category}.` : "Isi kuesioner untuk memulai baseline stress."}
+          </div>
+          <div className="flex items-center gap-2 text-sm text-[#64748B]">
+            <FiZap size={16} className="text-[#F59E0B]" />
+            Aktivitas tersimpan akan memperbarui angka stress.
           </div>
         </div>
       </section>
@@ -86,4 +137,3 @@ const StatusCards = ({ streakInfo, moodToday, hasCheckIn }) => {
 };
 
 export default StatusCards;
-

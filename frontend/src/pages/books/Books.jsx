@@ -10,12 +10,18 @@ import { useAlertPopup } from "../../hooks/useAlertPopup";
 import {
   createBookRead,
   createBookSession,
+  getGeneralBookRecommendations,
   getMyBookRecommendations,
 } from "../../lib/api";
 import { pickBookCategoryKeys } from "../../lib/bookCategories";
 import { normalizeThumbnailUrl } from "../../lib/bookCoverResolver";
 import { getBookSessions, saveBookSessions } from "../../lib/mindcareBookSessions";
 import { readUserData, writeUserData } from "../../lib/storage";
+
+const formatPercent = (value) => {
+  const percent = Number(value);
+  return Number.isFinite(percent) ? `${Math.round(percent)}%` : "--";
+};
 
 const normalizeAiBooks = (storedBooks) => (
   Array.isArray(storedBooks)
@@ -69,12 +75,40 @@ const mapRecommendedBooksFromApi = (apiBooks) => {
   return Array.from(dedup.values());
 };
 
+const mapGeneralBooksFromApi = (apiBooks) => {
+  const items = Array.isArray(apiBooks) ? apiBooks : [];
+
+  return items
+    .filter((book) => book?.id && (book?.judul || book?.title))
+    .map((book, index) => {
+      const title = String(book.judul || book.title || "").trim();
+      const author = String(book.penulis || book.author || "Penulis tidak diketahui").trim();
+      const rawCategory = String(book.kategori || book.category || "").trim();
+      const categoryKeys = pickBookCategoryKeys(rawCategory);
+
+      return {
+        id: `GENERAL_${book.id ?? index}`,
+        title,
+        author,
+        categoryKeys,
+        category: rawCategory || "Self Help",
+        categoriesRaw: rawCategory,
+        desc: book.deskripsi || book.description || "Pilihan bacaan umum dari katalog MindCare.",
+        thumbnail: normalizeThumbnailUrl(book.thumbnail),
+        rating: Number(book.average_rating || book.rating) || 4.2,
+        match: 85,
+        reason: "Pilihan umum dari katalog MindCare. Isi Cek Stress untuk rekomendasi yang lebih personal.",
+      };
+    });
+};
+
 const Books = () => {
   const { showAlert } = useAlertPopup();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentFilter, setCurrentFilter] = useState("all");
   const [selectedBook, setSelectedBook] = useState(null);
   const [aiBooks, setAiBooks] = useState(() => normalizeAiBooks(readUserData("ai_books", [])));
+  const [generalBooks, setGeneralBooks] = useState([]);
   const activeReadingSessionRef = useRef(null);
 
   useEffect(() => {
@@ -108,19 +142,61 @@ const Books = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const syncGeneralBooks = async () => {
+      try {
+        const res = await getGeneralBookRecommendations();
+        const normalized = mapGeneralBooksFromApi(res?.payload?.books || []);
+        if (mounted) setGeneralBooks(normalized);
+      } catch (err) {
+        console.error("Gagal mengambil rekomendasi buku umum:", err);
+      }
+    };
+
+    syncGeneralBooks();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const mergedBooks = useMemo(() => {
+    const personalKeys = new Set(aiBooks.map((book) => `${book.title.toLowerCase()}::${book.author.toLowerCase()}`));
+    return [
+      ...aiBooks,
+      ...generalBooks.filter((book) => !personalKeys.has(`${book.title.toLowerCase()}::${book.author.toLowerCase()}`)),
+    ];
+  }, [aiBooks, generalBooks]);
+
+  const availableFilters = useMemo(() => {
+    const categoryKeys = new Set();
+
+    mergedBooks.forEach((book) => {
+      (book.categoryKeys || []).forEach((key) => categoryKeys.add(key));
+    });
+
+    return Array.from(categoryKeys);
+  }, [mergedBooks]);
+
+  const activeFilter = currentFilter === "all" || availableFilters.includes(currentFilter)
+    ? currentFilter
+    : "all";
+
   const filteredBooks = useMemo(() => {
     const items =
-      currentFilter === "all"
-        ? aiBooks
-        : aiBooks.filter((book) => (book.categoryKeys || []).includes(currentFilter));
+      activeFilter === "all"
+        ? mergedBooks
+        : mergedBooks.filter((book) => (book.categoryKeys || []).includes(activeFilter));
 
     return items.sort((a, b) => {
       const aiPriority = Number((b.categoryKeys || []).includes("ai_recommendation")) - Number((a.categoryKeys || []).includes("ai_recommendation"));
       if (aiPriority !== 0) return aiPriority;
       return (Number(b.match) || 0) - (Number(a.match) || 0);
     });
-  }, [currentFilter, aiBooks]);
+  }, [activeFilter, mergedBooks]);
 
+  const hasPersonalRecommendations = aiBooks.length > 0;
 
   const handleFilterChange = (newFilter) => {
     setCurrentFilter(newFilter);
@@ -154,8 +230,12 @@ const Books = () => {
       sessions.push(localSession);
       saveBookSessions(sessions);
 
+      const stressLog = saved?.stress_progress?.reduction_log;
+      const stressState = saved?.stress_progress?.state;
       showAlert(
-        "Sesi membaca tersimpan dan tersinkron ke akun Anda.",
+        stressLog
+          ? `Sesi membaca tersimpan. Stress turun ${formatPercent(stressLog.penurunan_percent)} menjadi ${formatPercent(stressState?.stress_saat_ini_percent)}.`
+          : "Sesi membaca tersimpan dan tersinkron ke akun Anda.",
         { type: "success", title: "Sesi tersimpan" },
       );
     } catch {
@@ -252,7 +332,32 @@ const Books = () => {
 
           <div className="mx-auto max-w-6xl p-8 pt-2 lg:p-12 lg:pt-4">
             <div className="rounded-3xl border-2 border-[#1E293B] bg-white/50 p-8">
-              <BooksFilterBar currentFilter={currentFilter} onChange={handleFilterChange} />
+              <div className="mb-6 flex flex-col gap-3 border-b border-[#CBD5E1] pb-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-xl font-extrabold text-[#1E293B]">
+                    {hasPersonalRecommendations ? "Untuk Kamu" : "Pilihan Umum MindCare"}
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-sm font-medium text-[#64748B]">
+                    {hasPersonalRecommendations
+                      ? "Rekomendasi personal dari hasil Cek Stress terbaru tetap diprioritaskan, dengan katalog umum sebagai eksplorasi tambahan."
+                      : "Kamu tetap bisa melihat buku umum. Isi Cek Stress untuk mendapatkan rekomendasi yang lebih sesuai kondisimu."}
+                  </p>
+                </div>
+
+                {!hasPersonalRecommendations ? (
+                  <Link
+                    to="/stress-check"
+                    className="inline-flex shrink-0 items-center justify-center rounded-full border-2 border-[#1E293B] bg-[#8B5CF6] px-5 py-2.5 text-sm font-bold text-white shadow-[3px_3px_0px_0px_#1E293B] transition-all hover:-translate-y-0.5"
+                  >
+                    Personalisasi
+                  </Link>
+                ) : null}
+              </div>
+              <BooksFilterBar
+                currentFilter={activeFilter}
+                onChange={handleFilterChange}
+                availableFilters={availableFilters}
+              />
               <BooksGrid books={filteredBooks} onSelect={handleSelectBook} />
             </div>
           </div>

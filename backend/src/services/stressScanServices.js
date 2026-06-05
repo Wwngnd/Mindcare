@@ -1,6 +1,7 @@
 import stressScanRepository from "../repositories/stressScanRepository.js";
 import NotFoundError from "../exceptions/NotFoundError.js";
 import ValidationError from "../exceptions/ValidationError.js";
+import ConflictError from "../exceptions/ConflictError.js";
 import { getFacePrediction } from "../helper/facePredictionHelper.js";
 
 const DATA_URL_PATTERN = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/i;
@@ -40,6 +41,9 @@ const FACE_TO_STRESS_MAP = {
     },
 };
 
+const MIN_FACE_CONFIDENCE = Number.parseFloat(process.env.FACE_CONFIDENCE_THRESHOLD ?? "0.3");
+const SUPPORTED_FACE_LABELS = new Set(Object.keys(FACE_TO_STRESS_MAP));
+
 const sanitizeBase64 = (value) => value.replace(/\s+/g, "");
 
 const parseImageBase64 = (imageBase64, explicitMimetype) => {
@@ -78,9 +82,18 @@ const buildImagePayload = (imageBase64, imageMimetype, imageFilename) => {
     return { buffer, mimetype, filename };
 };
 
-const mapFacePredictionToScan = (label) => {
-    const normalizedLabel = (label || "").toLowerCase().trim();
-    return FACE_TO_STRESS_MAP[normalizedLabel] || FACE_TO_STRESS_MAP.neutral;
+const normalizeFacePrediction = (prediction = {}) => {
+    const rawLabel = (prediction.label || "").toLowerCase().trim();
+    const confidence = Number(prediction.confidence);
+    const lowConfidence = Number.isFinite(confidence) && confidence < MIN_FACE_CONFIDENCE;
+    const mappedLabel = SUPPORTED_FACE_LABELS.has(rawLabel) ? rawLabel : "neutral";
+
+    return {
+        rawLabel,
+        mappedLabel,
+        lowConfidence,
+        scanResult: FACE_TO_STRESS_MAP[mappedLabel] || FACE_TO_STRESS_MAP.neutral,
+    };
 };
 
 /**
@@ -93,6 +106,11 @@ const createStressScan = async (userId, data) => {
         image_filename
     } = data;
 
+    const todayScan = await stressScanRepository.findTodayStressScanByUserId(userId);
+    if (todayScan) {
+        throw new ConflictError("Anda sudah melakukan daily check-in hari ini.");
+    }
+
     const imagePayload = buildImagePayload(image_base64, image_mimetype, image_filename);
     const aiPrediction = await getFacePrediction(
         imagePayload.buffer,
@@ -100,10 +118,10 @@ const createStressScan = async (userId, data) => {
         imagePayload.mimetype
     );
 
-    const mappedScanResult = mapFacePredictionToScan(aiPrediction.label);
+    const normalizedPrediction = normalizeFacePrediction(aiPrediction);
 
     const scanId = await stressScanRepository.insertStressScan(userId, {
-        ...mappedScanResult,
+        ...normalizedPrediction.scanResult,
         foto_path: imagePayload.filename
     });
 
@@ -111,7 +129,13 @@ const createStressScan = async (userId, data) => {
 
     return {
         ...scan,
-        ai_prediction: aiPrediction
+        ai_prediction: {
+            ...aiPrediction,
+            raw_label: normalizedPrediction.rawLabel,
+            mapped_label: normalizedPrediction.mappedLabel,
+            low_confidence: normalizedPrediction.lowConfidence,
+            min_confidence: MIN_FACE_CONFIDENCE,
+        }
     };
 };
 

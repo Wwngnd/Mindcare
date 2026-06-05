@@ -1,6 +1,7 @@
 import NotFoundError from "../exceptions/NotFoundError.js";
 import ValidationError from "../exceptions/ValidationError.js";
 import journalRepository from "../repositories/journalRepository.js";
+import stressProgressServices from "./stressProgressServices.js";
 
 const formatCreatedJournal = (journal) => ({
     id: journal.id,
@@ -15,7 +16,17 @@ const formatCreatedJournal = (journal) => ({
 const journalService = {
     async createJournal(userId, payload) {
         const journal = await journalRepository.create(userId, payload);
-        return formatCreatedJournal(journal);
+        const stressProgress = await stressProgressServices.applyActivityReduction(userId, {
+            activity: "journaling",
+            durationMinutes: journal.durasi,
+            sourceType: "journal",
+            sourceId: journal.id
+        });
+
+        return {
+            ...formatCreatedJournal(journal),
+            stress_progress: stressProgress
+        };
     },
 
     async getAllJournalByUserLogin(userId) {

@@ -188,18 +188,6 @@ const insertDistribusi = async (sesiId, aktivitas, probabilitas) => {
     );
 };
 
-// Optional: Fungsi untuk mengambil buku berdasarkan ID (jika diperlukan)
-const findBukuById = async (id) => {
-    const [buku] = await db.query(
-        "SELECT * FROM tb_rekomendasi_buku WHERE id = ?",
-        {
-            replacements: [id],
-            type: QueryTypes.SELECT
-        }
-    );
-    return buku ?? null;
-};
-
 /**
  * Mengambil ringkasan seluruh sesi rekomendasi milik user.
  * Dipakai untuk menampilkan riwayat rekomendasi di frontend.
@@ -359,7 +347,6 @@ export default {
     insertAktivitas,
     insertBuku,
     insertDistribusi,
-    findBukuById,
     findRekomendasiSummaryByUserId,
     findRekomendasiSesiByIdAndUser,
     findRekomendasiAktivitasBySesiId,

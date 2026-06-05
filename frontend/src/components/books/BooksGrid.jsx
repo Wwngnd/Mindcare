@@ -58,9 +58,9 @@ const BooksGrid = ({ books, onSelect }) => {
         <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-[#f2f3f7]">
           <span className="text-4xl">📚</span>
         </div>
-        <h3 className="mb-2 text-xl font-bold text-[#1E293B]">Belum ada rekomendasi buku</h3>
+        <h3 className="mb-2 text-xl font-bold text-[#1E293B]">Belum ada buku di kategori ini</h3>
         <p className="mx-auto mb-8 max-w-sm text-sm text-[#64748B]">
-          Selesaikan kuesioner kesehatan mental untuk mendapatkan rekomendasi buku yang dipersonalisasi sesuai dengan kondisi Anda.
+          Coba kategori lain, atau isi Cek Stress untuk mendapatkan rekomendasi buku yang lebih personal.
         </p>
         <Link
           to="/stress-check"
@@ -80,7 +80,7 @@ const BooksGrid = ({ books, onSelect }) => {
           onClick={() => onSelect(book)}
           className="cursor-pointer overflow-hidden rounded-[14px] border border-[#5e6070] bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-0.5"
         >
-          <div className="h-34.5 border-b border-[#5e6070] bg-[#ededf7]">
+          <div className="h-44 border-b border-[#5e6070] bg-[#ededf7]">
             <BookCoverImage
               key={`${book.id}-${book.thumbnail || ""}`}
               title={book.title}

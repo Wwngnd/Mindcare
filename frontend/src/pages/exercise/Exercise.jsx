@@ -29,6 +29,11 @@ const formatTimer = (seconds) => {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 };
 
+const formatPercent = (value) => {
+  const percent = Number(value);
+  return Number.isFinite(percent) ? `${Math.round(percent)}%` : "--";
+};
+
 const GPS_OPTIONS = {
   enableHighAccuracy: true,
   maximumAge: 1000,
@@ -376,7 +381,16 @@ const Exercise = () => {
     };
 
     try {
-      await createOlahraga(payload);
+      const res = await createOlahraga(payload);
+      const stressLog = res?.payload?.stress_progress?.reduction_log;
+      const stressState = res?.payload?.stress_progress?.state;
+
+      if (stressLog) {
+        showAlert(
+          `Olahraga tersimpan. Stress turun ${formatPercent(stressLog.penurunan_percent)} menjadi ${formatPercent(stressState?.stress_saat_ini_percent)}.`,
+          { type: "success", title: "Stress diperbarui" },
+        );
+      }
 
       // ─── Map Matching via OSRM ────────────────────────────────────────────
       const collectedPoints = [...routePointsRef.current];

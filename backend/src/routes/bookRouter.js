@@ -7,6 +7,8 @@ import { bookReadSchema, bookSessionSchema } from "../validations/bookValidation
 
 const bookRouter = Router();
 
+bookRouter.get("/cover", bookController.proxyBookCover);
+bookRouter.get("/general", verifyToken, bookController.getGeneralBooks);
 bookRouter.post("/sessions", verifyToken, validate(bookSessionSchema), bookController.createBookSession);
 bookRouter.get("/sessions/me", verifyToken, bookController.getAllBookSessionsByUserLogin);
 bookRouter.post("/reads", verifyToken, validate(bookReadSchema), bookController.createBookRead);

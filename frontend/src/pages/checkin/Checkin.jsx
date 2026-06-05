@@ -8,41 +8,42 @@ import CheckinResultPanel from "../../components/checkin/CheckinResultPanel";
 import AppSidebar from "../../components/layout/AppSidebar";
 import { useAlertPopup } from "../../hooks/useAlertPopup";
 import { scanStress, getMyStressScans } from "../../lib/api";
-import { checkTodayStatus } from "../../utils/checkinSchedule";
+import { readUserData, writeUserData } from "../../lib/storage";
+import { checkTodayStatus, getDateString } from "../../utils/checkinSchedule";
 
 // ─── Konstanta & Peta Mood ────────────────────────────────────────────────────
 
 const moodDictionary = {
   happy: {
-    emoji: "😊",
+    emoji: "\uD83D\uDE0A",
     label: "Happy",
     title: "Hari ini Anda terlihat Senang!",
     desc: "Mood positif terdeteksi. Tetap jaga semangatmu!",
     color: "#34D399",
   },
   neutral: {
-    emoji: "😐",
+    emoji: "\uD83D\uDE10",
     label: "Neutral",
     title: "Mood Anda terlihat Netral",
     desc: "Kondisi stabil. Coba lakukan aktivitas yang menyenangkan!",
     color: "#8B5CF6",
   },
   sad: {
-    emoji: "😢",
+    emoji: "\uD83D\uDE22",
     label: "Sad",
     title: "Anda terlihat sedikit Sedih",
     desc: "Tidak apa-apa. Coba journaling atau olahraga ringan.",
     color: "#F472B6",
   },
   surprised: {
-    emoji: "😲",
+    emoji: "\uD83D\uDE32",
     label: "Surprised",
     title: "Ekspresi Anda terlihat Terkejut!",
     desc: "Ekspresi unik terdeteksi. Semoga harimu menyenangkan!",
     color: "#FBBF24",
   },
   angry: {
-    emoji: "😠",
+    emoji: "\uD83D\uDE20",
     label: "Angry",
     title: "Anda terlihat Kesal",
     desc: "Tarik napas dalam. Coba meditasi atau journaling.",
@@ -61,6 +62,90 @@ const MOOD_BACKEND_MAP = {
 
 // ─── Komponen Utama ───────────────────────────────────────────────────────────
 
+const CAPTURE_SIZE = 512;
+const FACE_CROP_SCALE = 0.82;
+const MIN_FRAME_BRIGHTNESS = 35;
+const MAX_FRAME_BRIGHTNESS = 225;
+const MIN_FRAME_CONTRAST = 16;
+const FACE_PROBABILITY_ORDER = ["happy", "neutral", "sad", "angry"];
+const FACE_PROBABILITY_LABELS = {
+  happy: "Senang",
+  neutral: "Netral",
+  sad: "Sedih",
+  angry: "Marah",
+};
+const FACE_PREDICTION_CACHE_KEY = "daily_checkin_face_prediction";
+
+const getCanvasQuality = (ctx, width, height) => {
+  const { data } = ctx.getImageData(0, 0, width, height);
+  let count = 0;
+  let sum = 0;
+  let squaredSum = 0;
+
+  for (let i = 0; i < data.length; i += 16) {
+    const luminance = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+    sum += luminance;
+    squaredSum += luminance * luminance;
+    count += 1;
+  }
+
+  const brightness = count ? sum / count : 0;
+  const variance = count ? squaredSum / count - brightness * brightness : 0;
+  const contrast = Math.sqrt(Math.max(variance, 0));
+
+  return { brightness, contrast };
+};
+
+const isFrameClearEnough = ({ brightness, contrast }) => {
+  return (
+    brightness >= MIN_FRAME_BRIGHTNESS &&
+    brightness <= MAX_FRAME_BRIGHTNESS &&
+    contrast >= MIN_FRAME_CONTRAST
+  );
+};
+
+const normalizeConfidence = (confidence) => {
+  const num = Number(confidence);
+  if (!Number.isFinite(num)) return null;
+  return Math.round(num <= 1 ? num * 100 : num);
+};
+
+const normalizeFaceProbabilities = (probabilities = {}) => {
+  if (!probabilities || typeof probabilities !== "object") return [];
+
+  const probabilityMap = new Map();
+  Object.entries(probabilities).forEach(([key, value]) => {
+    const normalizedKey = String(key).toLowerCase().trim();
+    const num = Number(value);
+
+    if (FACE_PROBABILITY_ORDER.includes(normalizedKey) && Number.isFinite(num)) {
+      probabilityMap.set(normalizedKey, Math.round(num <= 1 ? num * 100 : num));
+    }
+  });
+
+  return FACE_PROBABILITY_ORDER
+    .filter((key) => probabilityMap.has(key))
+    .map((key) => ({
+      key,
+      label: FACE_PROBABILITY_LABELS[key],
+      percent: probabilityMap.get(key),
+    }));
+};
+
+const readTodayFacePredictionCache = (createdAt) => {
+  const cached = readUserData(FACE_PREDICTION_CACHE_KEY, null);
+  if (!cached?.date || !createdAt) return null;
+  return cached.date === getDateString(createdAt) ? cached.ai_prediction : null;
+};
+
+const writeTodayFacePredictionCache = (createdAt, aiPrediction) => {
+  if (!aiPrediction) return;
+  writeUserData(FACE_PREDICTION_CACHE_KEY, {
+    date: getDateString(createdAt),
+    ai_prediction: aiPrediction,
+  });
+};
+
 const Checkin = () => {
   const { showAlert } = useAlertPopup();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -76,7 +161,8 @@ const Checkin = () => {
 
   // State hasil mood
   const [resultMood, setResultMood] = useState("neutral");
-  const [resultConfidence, setResultConfidence] = useState(90);
+  const [resultConfidence, setResultConfidence] = useState(null);
+  const [resultProbabilities, setResultProbabilities] = useState([]);
 
   // ✅ Waktu check-in hari ini (diisi dari backend atau setelah konfirmasi foto)
   const [checkinAt, setCheckinAt] = useState(null);
@@ -87,6 +173,7 @@ const Checkin = () => {
   const detectTimerRef = useRef(null);
   const countdownRef = useRef(null);
   const retakingRef = useRef(false);
+  const confirmingRef = useRef(false);
 
   // ─── Cek apakah hari ini sudah check-in (ambil dari backend) ─────────────
   useEffect(() => {
@@ -101,12 +188,13 @@ const Checkin = () => {
 
         if (checkedInToday && todayScan) {
           const moodKey = MOOD_BACKEND_MAP[todayScan.mood] || "neutral";
-          const confidence = todayScan.ai_prediction?.confidence
-            ? Math.round(todayScan.ai_prediction.confidence * 100)
-            : 90;
+          const cachedPrediction = todayScan.ai_prediction || readTodayFacePredictionCache(todayScan.createdAt);
+          const confidence = normalizeConfidence(cachedPrediction?.confidence);
+          const probabilities = normalizeFaceProbabilities(cachedPrediction?.probabilities);
 
           setResultMood(moodKey);
           setResultConfidence(confidence);
+          setResultProbabilities(probabilities);
           setCheckinAt(new Date(todayScan.createdAt));
           setPanel("result"); // ← langsung ke result, skip kamera
         }
@@ -123,8 +211,12 @@ const Checkin = () => {
   // ─── Memoize objek hasil mood ─────────────────────────────────────────────
   const result = useMemo(() => {
     const base = moodDictionary[resultMood] || moodDictionary.neutral;
-    return { ...base, confidence: resultConfidence };
-  }, [resultMood, resultConfidence]);
+    return {
+      ...base,
+      confidence: resultConfidence,
+      probabilities: resultProbabilities,
+    };
+  }, [resultMood, resultConfidence, resultProbabilities]);
 
   // ─── Helper: bersihkan timer ──────────────────────────────────────────────
   const clearTimers = () => {
@@ -140,17 +232,6 @@ const Checkin = () => {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
-  };
-
-  const cancelCheckin = () => {
-    clearTimers();
-    stopCamera();
-    setCapturedImage(null);
-    setCameraStarted(false);
-    setFaceDetected(false);
-    setCaptureDisabled(true);
-    setAutoCaptureMessage("");
-    setPanel("camera");
   };
 
   // Cleanup saat komponen unmount
@@ -178,24 +259,11 @@ const Checkin = () => {
       setAutoCaptureMessage("");
       setPanel("camera");
 
-      // Simulasi deteksi wajah + auto-capture countdown
+      // Simulasi kesiapan wajah. User tetap memilih momen capture agar ekspresi lebih jelas.
       detectTimerRef.current = setTimeout(() => {
         setFaceDetected(true);
         setCaptureDisabled(false);
-
-        let count = 3;
-        setAutoCaptureMessage(`Auto-capture dalam ${count} detik...`);
-        countdownRef.current = setInterval(() => {
-          count -= 1;
-          if (count <= 0) {
-            clearInterval(countdownRef.current);
-            countdownRef.current = null;
-            setAutoCaptureMessage("");
-            capturePhoto();
-          } else {
-            setAutoCaptureMessage(`Auto-capture dalam ${count} detik...`);
-          }
-        }, 1000);
+        setAutoCaptureMessage("Wajah siap. Tekan Capture saat ekspresimu sudah sesuai.");
       }, 2000);
     } catch (error) {
       showAlert("Tidak dapat mengakses kamera. Pastikan izin kamera diberikan.", {
@@ -213,15 +281,49 @@ const Checkin = () => {
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    if (!video.videoWidth || !video.videoHeight) {
+      showAlert("Kamera belum siap. Tunggu sebentar lalu coba capture lagi.", {
+        type: "warning",
+        title: "Kamera belum siap",
+      });
+      setCaptureDisabled(false);
+      return;
+    }
+
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    const sourceSize = Math.floor(Math.min(videoWidth, videoHeight) * FACE_CROP_SCALE);
+    const sourceX = Math.max(0, Math.round((videoWidth - sourceSize) / 2));
+    const sourceY = Math.max(0, Math.round((videoHeight - sourceSize) / 2));
+
+    canvas.width = CAPTURE_SIZE;
+    canvas.height = CAPTURE_SIZE;
 
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-    const image = canvas.toDataURL("image/jpeg", 0.8);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.save();
+    ctx.translate(CAPTURE_SIZE, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, sourceX, sourceY, sourceSize, sourceSize, 0, 0, CAPTURE_SIZE, CAPTURE_SIZE);
+    ctx.restore();
+
+    const frameQuality = getCanvasQuality(ctx, CAPTURE_SIZE, CAPTURE_SIZE);
+    if (!isFrameClearEnough(frameQuality)) {
+      showAlert("Foto kurang jelas. Pastikan wajah berada di tengah dan pencahayaan cukup.", {
+        type: "warning",
+        title: "Foto belum siap",
+      });
+      setCaptureDisabled(false);
+      setAutoCaptureMessage("");
+      return;
+    }
+
+    const image = canvas.toDataURL("image/jpeg", 0.9);
     setCapturedImage(image);
 
     stopCamera();
+    setCameraStarted(false);
     setPanel("preview");
   };
 
@@ -259,14 +361,11 @@ const Checkin = () => {
   };
 
   // ─── Helper: normalisasi confidence 0-1 atau 0-100 → integer persen ──────
-  const normalizeConfidence = (confidence) => {
-    const num = Number(confidence);
-    if (!Number.isFinite(num)) return 0;
-    return Math.round(num <= 1 ? num * 100 : num);
-  };
-
   // ─── Konfirmasi & kirim foto ke backend ──────────────────────────────────
   const confirmPhoto = async () => {
+    if (confirmingRef.current) return;
+
+    confirmingRef.current = true;
     setPanel("analyzing");
 
     try {
@@ -288,13 +387,20 @@ const Checkin = () => {
       // Backend returns the scan object: 'mood' (int) + 'ai_prediction' { label, confidence }
       const moodInt = scanResult.mood;
       const moodKey = MOOD_BACKEND_MAP[moodInt] || scanResult.ai_prediction?.label || "neutral";
-      const confidence = normalizeConfidence(scanResult.ai_prediction?.confidence || 0.9);
+      const confidence = normalizeConfidence(scanResult.ai_prediction?.confidence);
+      const probabilities = normalizeFaceProbabilities(scanResult.ai_prediction?.probabilities);
+
+      if (import.meta.env.DEV) {
+        console.debug("Face scan prediction", scanResult.ai_prediction);
+      }
 
       setResultMood(moodKey.toLowerCase());
       setResultConfidence(confidence);
+      setResultProbabilities(probabilities);
 
       // ✅ Catat waktu check-in (gunakan createdAt dari response, atau waktu lokal sekarang)
       const checkinTime = scanResult.createdAt ? new Date(scanResult.createdAt) : new Date();
+      writeTodayFacePredictionCache(checkinTime, scanResult.ai_prediction);
       setCheckinAt(checkinTime);
 
       setPanel("result");
@@ -309,6 +415,7 @@ const Checkin = () => {
         type: "error",
         title: "Analisis foto gagal",
       });
+      confirmingRef.current = false;
       setPanel("preview");
     }
   };

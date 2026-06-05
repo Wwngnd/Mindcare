@@ -99,7 +99,8 @@ const StressCheck = () => {
     apiRequest("/api/kuesioner", { method: "POST", body: payload })
       .then((json) => {
         const rekomendasi = json?.payload?.rekomendasi ?? null;
-        setResultData(rekomendasi);
+        const stressProgress = json?.payload?.stress_progress ?? null;
+        setResultData(rekomendasi ? { ...rekomendasi, stress_progress: stressProgress } : null);
 
         if (rekomendasi?.rekomendasi_utama?.rekomendasi_buku) {
           const booksToSave = rekomendasi.rekomendasi_utama.rekomendasi_buku.map((b, i) => {
@@ -140,9 +141,13 @@ const StressCheck = () => {
   const mappedResult = useMemo(() => {
     const activity = resultData?.rekomendasi_utama?.aktivitas ?? "";
     const buku = resultData?.rekomendasi_utama?.rekomendasi_buku ?? [];
+    const assessment = resultData?.stress_assessment ?? {};
     return {
       insight: resultData?.insight?.alasan ?? "",
       confidencePct: Math.round((resultData?.rekomendasi_utama?.confidence ?? 0) * 100),
+      stressPercent: assessment.stress_percentage ?? resultData?.stress_progress?.stress_saat_ini_percent ?? null,
+      stressCategory: assessment.stress_level ?? resultData?.stress_progress?.kategori_stress ?? "",
+      stressDescription: assessment.keterangan ?? resultData?.stress_progress?.keterangan_stress ?? "",
       activityLabel: activityLabel(activity),
       duration: resultData?.rekomendasi_utama?.durasi ?? 0,
       activityDetail: resultData?.rekomendasi_utama?.detail ?? "",
@@ -151,7 +156,7 @@ const StressCheck = () => {
         author: b.penulis,
         category: b.kategori,
         description: b.deskripsi,
-        thumbnail: b.thumbnail,
+        thumbnail: normalizeThumbnailUrl(b.thumbnail),
       })),
     };
   }, [resultData]);

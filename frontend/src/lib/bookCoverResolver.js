@@ -1,9 +1,47 @@
 const COVER_CACHE_KEY = "mindcare_book_cover_cache_v1";
 const inMemoryCoverCache = new Map();
+const DEFAULT_API_URL = "http://localhost:3000";
 
 const isHttpUrl = (value) => /^https?:\/\//i.test(value);
 
 const sanitizeIsbn = (value = "") => String(value).replace(/[^0-9X]/gi, "");
+
+const isGeneratedPlaceholder = (value = "") => String(value).startsWith("data:image/svg+xml");
+
+const getApiBaseUrl = () => {
+  const configuredUrl = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, "");
+  return configuredUrl.replace(/\/api$/i, "");
+};
+
+const isGoogleBooksCoverUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return /^books\.google\.[a-z.]+$/i.test(url.hostname);
+  } catch {
+    return false;
+  }
+};
+
+const proxiedCoverUrl = (value) =>
+  `${getApiBaseUrl()}/api/books/cover?url=${encodeURIComponent(value)}`;
+
+const isKnownNoCoverUrl = (value) => {
+  try {
+    const url = new URL(value);
+    const normalizedHref = url.href.toLowerCase();
+    const normalizedHost = url.hostname.toLowerCase();
+
+    return (
+      normalizedHost.includes("placeholder.") ||
+      normalizedHref.includes("no+cover") ||
+      normalizedHref.includes("no%20cover") ||
+      normalizedHref.includes("image+not+available") ||
+      normalizedHref.includes("image%20not%20available")
+    );
+  } catch {
+    return false;
+  }
+};
 
 const getCacheFromStorage = () => {
   try {
@@ -35,7 +73,9 @@ export const normalizeThumbnailUrl = (thumbnail) => {
   if (!value) return "";
   if (value.startsWith("data:image/")) return value;
   if (!isHttpUrl(value)) return "";
-  return value.replace(/^http:\/\//i, "https://");
+  const normalized = value.replace(/^http:\/\//i, "https://");
+  if (isKnownNoCoverUrl(normalized)) return "";
+  return isGoogleBooksCoverUrl(normalized) ? proxiedCoverUrl(normalized) : normalized;
 };
 
 export const buildBookPlaceholderCover = (title, author = "") => {
@@ -71,6 +111,12 @@ const getCachedCover = (cacheKey) => {
 
   const storageCache = getCacheFromStorage();
   if (storageCache[cacheKey]) {
+    if (isGeneratedPlaceholder(storageCache[cacheKey])) {
+      delete storageCache[cacheKey];
+      saveCacheToStorage(storageCache);
+      return null;
+    }
+
     inMemoryCoverCache.set(cacheKey, storageCache[cacheKey]);
     return storageCache[cacheKey];
   }
@@ -79,6 +125,8 @@ const getCachedCover = (cacheKey) => {
 };
 
 const setCachedCover = (cacheKey, value) => {
+  if (isGeneratedPlaceholder(value)) return;
+
   inMemoryCoverCache.set(cacheKey, value);
   const storageCache = getCacheFromStorage();
   storageCache[cacheKey] = value;
@@ -131,7 +179,6 @@ export const resolveFallbackBookCover = async (title, author = "") => {
   }
 
   const placeholder = buildBookPlaceholderCover(title, author);
-  setCachedCover(cacheKey, placeholder);
   return placeholder;
 };
 

@@ -58,6 +58,22 @@ const findStressScanByUserId = async (userId) => {
     );
 };
 
+const findTodayStressScanByUserId = async (userId) => {
+    const [scan] = await db.query(
+        `SELECT * FROM tb_stress_scan
+         WHERE user_id = ?
+           AND createdAt >= CURRENT_DATE()
+           AND createdAt < CURRENT_DATE() + INTERVAL 1 DAY
+         ORDER BY createdAt DESC
+         LIMIT 1`,
+        {
+            replacements: [userId],
+            type: QueryTypes.SELECT
+        }
+    );
+    return scan ?? null;
+};
+
 /**
  * Mengambil stress scan berdasarkan ID dan memvalidasi kepemilikan user.
  * @returns {object|null} Data stress scan, atau null jika tidak ditemukan / bukan miliknya.
@@ -104,6 +120,7 @@ export default {
     insertStressScan,
     findStressScanById,
     findStressScanByUserId,
+    findTodayStressScanByUserId,
     findStressScanByIdAndUser,
     findAllStressScan,
     deleteStressScan

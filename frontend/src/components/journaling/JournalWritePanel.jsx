@@ -6,6 +6,7 @@ const JournalWritePanel = ({
   onTitleChange,
   onContentChange,
   onSave,
+  saving = false,
 }) => {
   return (
     <div className="relative rounded-4xl border border-gray-200 bg-white p-8 shadow-sm">
@@ -13,9 +14,10 @@ const JournalWritePanel = ({
         <button
           type="button"
           onClick={onSave}
-          className="flex items-center gap-2 rounded-full bg-emerald-400 px-6 py-2 text-sm font-bold text-white transition-all hover:opacity-90"
+          disabled={saving}
+          className="flex items-center gap-2 rounded-full bg-emerald-400 px-6 py-2 text-sm font-bold text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <FiSave size={16} /> Simpan
+          <FiSave size={16} /> {saving ? "Menyimpan..." : "Simpan"}
         </button>
       </div>
 
@@ -31,7 +33,7 @@ const JournalWritePanel = ({
         <textarea
           value={content}
           onChange={(event) => onContentChange(event.target.value)}
-          placeholder={"Mulai menulis di sini... ✍️\n\nCeritakan apa yang kamu rasakan hari ini."}
+          placeholder={"Mulai menulis di sini...\n\nCeritakan apa yang kamu rasakan hari ini."}
           className="h-100 w-full resize-none py-4 leading-relaxed text-gray-600 outline-none placeholder:text-gray-300"
         />
       </div>

@@ -8,6 +8,11 @@ import AppSidebar from "../../components/layout/AppSidebar";
 import { useAlertPopup } from "../../hooks/useAlertPopup";
 import { apiRequest } from "../../lib/api";
 
+const formatPercent = (value) => {
+  const percent = Number(value);
+  return Number.isFinite(percent) ? `${Math.round(percent)}%` : "--";
+};
+
 const Journaling = () => {
   const { showAlert } = useAlertPopup();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -17,9 +22,11 @@ const Journaling = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [savingJournal, setSavingJournal] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [deletingJournal, setDeletingJournal] = useState(false);
   const sessionStartedRef = useRef(false);
+  const savingRef = useRef(false);
 
   const [journals, setJournals] = useState([]);
 
@@ -28,11 +35,12 @@ const Journaling = () => {
       try {
         const res = await apiRequest("api/journal/me");
         if (res.success && res.payload) {
-          const fetchedJournals = Object.values(res.payload).map((item) => ({
+          const journalRows = Array.isArray(res.payload) ? res.payload : Object.values(res.payload);
+          const fetchedJournals = journalRows.map((item) => ({
             id: item.id,
             title: item.judul,
             content: item.deskripsi,
-            durationSeconds: item.durasi,
+            durationMinutes: item.durasi,
             date: item.createdAt,
           }));
           setJournals(fetchedJournals);
@@ -82,6 +90,11 @@ const Journaling = () => {
     setElapsedSeconds(0);
   };
 
+  const getDurationMinutes = () => {
+    if (!elapsedSeconds) return 1;
+    return Math.min(255, Math.max(1, Math.ceil(elapsedSeconds / 60)));
+  };
+
   const cancelJournal = () => {
     setTitle("");
     setContent("");
@@ -89,22 +102,33 @@ const Journaling = () => {
   };
 
   const handleSave = async () => {
+    if (savingRef.current) return;
+
     if (!content.trim()) {
       showAlert("Konten tidak boleh kosong!", { type: "warning", title: "Data belum lengkap" });
       return;
     }
 
     try {
-      await apiRequest("api/journal", {
+      savingRef.current = true;
+      setSavingJournal(true);
+      const res = await apiRequest("api/journal", {
         method: "POST",
         body: {
           judul: title.trim() || "Tanpa Judul",
           deskripsi: content.trim(),
-          durasi: elapsedSeconds,
+          durasi: getDurationMinutes(),
         },
       });
 
-      showAlert("Jurnal disimpan!", { type: "success", title: "Berhasil" });
+      const stressLog = res?.payload?.stress_progress?.reduction_log;
+      const stressState = res?.payload?.stress_progress?.state;
+      showAlert(
+        stressLog
+          ? `Jurnal disimpan. Stress turun ${formatPercent(stressLog.penurunan_percent)} menjadi ${formatPercent(stressState?.stress_saat_ini_percent)}.`
+          : "Jurnal disimpan!",
+        { type: "success", title: "Berhasil" },
+      );
       setTitle("");
       setContent("");
       resetSessionTimer();
@@ -115,6 +139,9 @@ const Journaling = () => {
         type: "error",
         title: "Simpan jurnal gagal",
       });
+    } finally {
+      savingRef.current = false;
+      setSavingJournal(false);
     }
   };
 
@@ -147,7 +174,8 @@ const Journaling = () => {
     }
   };
 
-  const featureStarted = activeTab === "write" && Boolean(title.trim() || content.trim() || timerRunning);
+  const hasDraft = Boolean(title.trim() || content.trim() || timerRunning);
+  const featureStarted = hasDraft;
 
   return (
     <div className="min-h-screen bg-[#F4F5F9] text-[#1E293B]">
@@ -179,7 +207,7 @@ const Journaling = () => {
           <div className="mx-auto max-w-4xl p-8 lg:p-12">
             <JournalTabs activeTab={activeTab} onChange={setActiveTab} />
 
-            {featureStarted ? (
+            {hasDraft && activeTab === "write" ? (
               <div className="mb-6 flex justify-end">
                 <button
                   onClick={cancelJournal}
@@ -197,6 +225,7 @@ const Journaling = () => {
                 onTitleChange={handleTitleChange}
                 onContentChange={handleContentChange}
                 onSave={handleSave}
+                saving={savingJournal}
               />
             ) : (
               <JournalHistoryPanel journals={journals} onDelete={handleDeleteRequest} />

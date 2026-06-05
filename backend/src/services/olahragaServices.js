@@ -1,9 +1,21 @@
 import NotFoundError from "../exceptions/NotFoundError.js";
 import olahragaRepository from "../repositories/olahragaRepository.js";
+import stressProgressServices from "./stressProgressServices.js";
 
 const olahragaService = {
     async createOlahraga(userId, payload) {
-        return olahragaRepository.create(userId, payload);
+        const olahraga = await olahragaRepository.create(userId, payload);
+        const stressProgress = await stressProgressServices.applyActivityReduction(userId, {
+            activity: "olahraga",
+            durationMinutes: olahraga?.durasi_menit,
+            sourceType: "olahraga",
+            sourceId: olahraga?.id
+        });
+
+        return {
+            ...olahraga,
+            stress_progress: stressProgress
+        };
     },
 
     async getAllOlahragaByUserLogin(userId) {

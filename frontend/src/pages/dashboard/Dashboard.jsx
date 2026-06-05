@@ -9,8 +9,6 @@ import AppSidebar from "../../components/layout/AppSidebar";
 import { apiRequest } from "../../lib/api";
 import { readAppData } from "../../lib/storage";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 const moodToEmoji = {
   happy: "\uD83D\uDE0A",
   neutral: "\uD83D\uDE10",
@@ -48,20 +46,6 @@ const toDateKey = (value) => {
   return `${year}-${month}-${day}`;
 };
 
-const parseDateKey = (dateKey) => {
-  const [year, month, day] = String(dateKey).split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
-};
-
-const getWeekStartMonday = (dateValue) => {
-  const date = toDayStart(dateValue) || new Date();
-  const day = date.getDay();
-  const offset = day === 0 ? -6 : 1 - day;
-  date.setDate(date.getDate() + offset);
-  return date;
-};
-
 const extractArrayPayload = (payload, expectedKey) => {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
@@ -86,6 +70,7 @@ const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState({
     user: readAppData("user", {}),
     stressScans: [],
+    stressProgress: null,
   });
 
   useEffect(() => {
@@ -106,9 +91,10 @@ const Dashboard = () => {
       setLoading(true);
 
       try {
-        const [userRes, scansRes] = await Promise.all([
+        const [userRes, scansRes, progressRes] = await Promise.all([
           withFallback(apiRequest("/api/auth/me")),
           withFallback(apiRequest("/api/stress-scan/me")),
+          withFallback(apiRequest("/api/stress-progress/me")),
         ]);
 
         if (!mounted) return;
@@ -116,6 +102,7 @@ const Dashboard = () => {
         setDashboardData((prev) => ({
           user: userRes?.payload?.user || prev.user,
           stressScans: extractArrayPayload(scansRes?.payload, "scans"),
+          stressProgress: progressRes?.payload || null,
         }));
       } finally {
         if (mounted) setLoading(false);
@@ -140,66 +127,6 @@ const Dashboard = () => {
     return {
       hasCheckIn: Boolean(latest),
       moodToday: moodKey ? moodToEmoji[moodKey] : "--",
-    };
-  }, [dashboardData.stressScans]);
-
-  const streakInfo = useMemo(() => {
-    const activeDayKeys = new Set();
-    const addActivityDay = (value) => {
-      const key = toDateKey(value);
-      if (key) activeDayKeys.add(key);
-    };
-
-    dashboardData.stressScans.forEach((item) => addActivityDay(item?.createdAt || item?.tanggal));
-
-    const today = toDayStart(new Date()) || new Date();
-    let current = 0;
-    const cursor = new Date(today);
-    while (activeDayKeys.has(toDateKey(cursor))) {
-      current += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    }
-
-    const sortedDays = [...activeDayKeys].sort();
-    let longest = 0;
-    let run = 0;
-    let prevDay = null;
-    sortedDays.forEach((dayKey) => {
-      const day = parseDateKey(dayKey);
-      if (!day) return;
-
-      if (prevDay && (day - prevDay) / DAY_MS === 1) {
-        run += 1;
-      } else {
-        run = 1;
-      }
-
-      longest = Math.max(longest, run);
-      prevDay = day;
-    });
-
-    const weekStart = getWeekStartMonday(new Date());
-    const weekItems = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + index);
-      const dateKey = toDateKey(date);
-
-      return {
-        date,
-        dateKey,
-        active: activeDayKeys.has(dateKey),
-        fullDateLabel: date.toLocaleDateString("id-ID", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        }),
-      };
-    });
-
-    return {
-      current,
-      longest,
-      weekItems,
     };
   }, [dashboardData.stressScans]);
 
@@ -262,7 +189,7 @@ const Dashboard = () => {
           <div className="mx-auto max-w-5xl space-y-8 p-6 lg:p-10">
             <WelcomeCard userName={dashboardData.user?.name} />
             <StatusCards
-              streakInfo={streakInfo}
+              stressProgress={dashboardData.stressProgress}
               moodToday={moodInfo.moodToday}
               hasCheckIn={moodInfo.hasCheckIn}
             />

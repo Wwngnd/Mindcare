@@ -192,6 +192,11 @@ def load_face_model() -> keras.Model:
                 compile=False,
                 safe_mode=False,
             )
+            output_units = int(face_model.output_shape[-1])
+            if len(FACE_LABELS) != output_units:
+                raise ValueError(
+                    f"Jumlah FACE_LABELS ({len(FACE_LABELS)}) harus sama dengan output model ({output_units})."
+                )
         finally:
             if os.path.exists(patched_model_path):
                 os.remove(patched_model_path)
@@ -199,9 +204,19 @@ def load_face_model() -> keras.Model:
     return face_model
 
 
+def center_crop_square(image: Image.Image) -> Image.Image:
+    """Crop tengah agar wajah tidak kalah oleh background webcam."""
+    width, height = image.size
+    side = min(width, height)
+    left = (width - side) // 2
+    top = (height - side) // 2
+    return image.crop((left, top, left + side, top + side))
+
+
 def preprocess_face_image(image_file) -> np.ndarray:
     """Ubah file gambar menjadi tensor input model: (1, 224, 224, 3)."""
     image = Image.open(image_file).convert("RGB")
+    image = center_crop_square(image)
     image = image.resize((224, 224))
     image_array = np.asarray(image, dtype=np.float32) / 255.0
     return np.expand_dims(image_array, axis=0)

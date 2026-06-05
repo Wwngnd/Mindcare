@@ -137,34 +137,11 @@ export async function getMyStressScans() {
 }
 
 /**
- * GET /api/stress-scan/:id
- * Detail hasil scan berdasarkan ID
+ * GET /api/stress-progress/me
+ * Ambil persentase stress terbaru dan log penurunan aktivitas
  */
-export async function getStressScanById(id) {
-  return apiRequest(`/api/stress-scan/${id}`);
-}
-
-/**
- * DELETE /api/stress-scan/:id
- * Hapus riwayat scan
- */
-export async function deleteStressScan(id) {
-  return apiRequest(`/api/stress-scan/${id}`, { method: "DELETE" });
-}
-
-/**
- * GET /api/stress-scan (Admin only)
- */
-export async function getAllStressScans() {
-  return apiRequest("/api/stress-scan");
-}
-
-/**
- * GET /api/kuesioner/me
- * Ambil riwayat kuesioner milik user
- */
-export async function getMyKuesioner() {
-  return apiRequest("/api/kuesioner/me");
+export async function getMyStressProgress() {
+  return apiRequest("/api/stress-progress/me");
 }
 
 /**
@@ -173,6 +150,15 @@ export async function getMyKuesioner() {
  */
 export async function getMyBookRecommendations() {
   return apiRequest("/api/kuesioner/rekomendasi");
+}
+
+/**
+ * GET /api/books/general
+ * Ambil rekomendasi buku umum dari katalog MindCare
+ */
+export async function getGeneralBookRecommendations(limit) {
+  const query = limit ? `?limit=${encodeURIComponent(limit)}` : "";
+  return apiRequest(`/api/books/general${query}`);
 }
 
 /**
@@ -206,14 +192,6 @@ export async function createBookRead(data) {
 }
 
 /**
- * GET /api/books/reads/me
- * Ambil riwayat buku yang dibuka user
- */
-export async function getMyBookReads() {
-  return apiRequest("/api/books/reads/me");
-}
-
-/**
  * Olahraga (Exercise) API
  */
 
@@ -226,14 +204,6 @@ export async function createOlahraga(data) {
 
 export async function getMyOlahraga() {
   return apiRequest("/api/olahraga/me");
-}
-
-export async function getOlahragaStatistik() {
-  return apiRequest("/api/olahraga/statistik");
-}
-
-export async function getOlahragaStatistikPerJenis() {
-  return apiRequest("/api/olahraga/statistik-per-jenis");
 }
 
 /**

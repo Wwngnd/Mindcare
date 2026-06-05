@@ -203,6 +203,43 @@ CREATE TABLE `tb_stress_scan` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `tb_user_stress_state`
+--
+
+CREATE TABLE `tb_user_stress_state` (
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `kuesioner_id` int DEFAULT NULL,
+  `stress_awal_percent` decimal(5,2) NOT NULL COMMENT 'baseline terbaru dari kuesioner',
+  `stress_saat_ini_percent` decimal(5,2) NOT NULL COMMENT 'stress berjalan setelah aktivitas',
+  `kategori_stress` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `keterangan_stress` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tb_stress_reduction_log`
+--
+
+CREATE TABLE `tb_stress_reduction_log` (
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `aktivitas` enum('membaca','journaling','olahraga') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_type` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'journal, book_session, olahraga',
+  `source_id` int DEFAULT NULL,
+  `durasi_menit` smallint NOT NULL,
+  `stress_sebelum` decimal(5,2) NOT NULL,
+  `penurunan_percent` decimal(5,2) NOT NULL,
+  `stress_sesudah` decimal(5,2) NOT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `tb_users`
 --
 
@@ -304,6 +341,22 @@ ALTER TABLE `tb_stress_scan`
   ADD KEY `fk_stress_user` (`user_id`);
 
 --
+-- Indexes for table `tb_user_stress_state`
+--
+ALTER TABLE `tb_user_stress_state`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_user_stress_state_user` (`user_id`),
+  ADD KEY `fk_user_stress_state_kuesioner` (`kuesioner_id`);
+
+--
+-- Indexes for table `tb_stress_reduction_log`
+--
+ALTER TABLE `tb_stress_reduction_log`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_stress_reduction_user` (`user_id`),
+  ADD KEY `idx_stress_reduction_created` (`createdAt`);
+
+--
 -- Indexes for table `tb_users`
 --
 ALTER TABLE `tb_users`
@@ -378,6 +431,18 @@ ALTER TABLE `tb_rekomendasi_sesi`
 --
 ALTER TABLE `tb_stress_scan`
   MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+
+--
+-- AUTO_INCREMENT for table `tb_user_stress_state`
+--
+ALTER TABLE `tb_user_stress_state`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `tb_stress_reduction_log`
+--
+ALTER TABLE `tb_stress_reduction_log`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `tb_users`
@@ -455,6 +520,19 @@ ALTER TABLE `tb_rekomendasi_sesi`
 --
 ALTER TABLE `tb_stress_scan`
   ADD CONSTRAINT `fk_stress_user` FOREIGN KEY (`user_id`) REFERENCES `tb_users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `tb_user_stress_state`
+--
+ALTER TABLE `tb_user_stress_state`
+  ADD CONSTRAINT `fk_user_stress_state_kuesioner` FOREIGN KEY (`kuesioner_id`) REFERENCES `tb_kuesioner_hasil` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_user_stress_state_user` FOREIGN KEY (`user_id`) REFERENCES `tb_users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `tb_stress_reduction_log`
+--
+ALTER TABLE `tb_stress_reduction_log`
+  ADD CONSTRAINT `fk_stress_reduction_user` FOREIGN KEY (`user_id`) REFERENCES `tb_users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

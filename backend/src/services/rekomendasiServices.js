@@ -23,7 +23,7 @@ export const saveRekomendasiUtama = async (sesiId, rekomendasiUtama) => {
 export const saveAlternatif = async (sesiId, alternatifList) => {
     const enrichedAlternatif = [];
 
-    for (const alt of alternatifList) {
+    for (const alt of alternatifList ?? []) {
         const altId = await kuesionerRepository.insertAktivitas(
             sesiId,
             false,
@@ -46,7 +46,7 @@ export const saveAlternatif = async (sesiId, alternatifList) => {
 };
 
 export const saveDistribusi = async (sesiId, distribusiProbabilitas) => {
-    for (const [aktivitas, probabilitas] of Object.entries(distribusiProbabilitas)) {
+    for (const [aktivitas, probabilitas] of Object.entries(distribusiProbabilitas ?? {})) {
         await kuesionerRepository.insertDistribusi(sesiId, aktivitas, probabilitas);
     }
 };

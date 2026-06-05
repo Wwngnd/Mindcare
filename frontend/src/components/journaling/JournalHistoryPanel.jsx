@@ -8,11 +8,11 @@ const JournalHistoryPanel = ({ journals, onDelete }) => {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {journals.map((journal, index) => (
-        <div key={`${journal.id || journal.date}-${index}`} className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm relative group">
+        <div key={`${journal.id || journal.date}-${index}`} className="relative rounded-3xl border border-gray-100 bg-white p-6 shadow-sm group">
           {onDelete && (
             <button
               onClick={() => onDelete(journal.id)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-4 right-4 text-gray-400 opacity-100 transition-opacity hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
               title="Hapus Jurnal"
             >
               <FiTrash2 size={18} />

@@ -6,6 +6,7 @@ import journalRouter from "./journalRouter.js";
 import kuesionerRouter from "./kuesionerRouter.js";
 import olahragaRouter from "./olahragaRouter.js";
 import stressScanRouter from "./stressScanRouter.js";
+import stressProgressRouter from "./stressProgressRouter.js";
 import bookRouter from "./bookRouter.js";
 import matchRouteRouter from "./matchRouteRouter.js";
 
@@ -18,6 +19,7 @@ const routes = [
     { path: "/kuesioner", handler: kuesionerRouter },
     { path: "/olahraga", handler: olahragaRouter },
     { path: "/stress-scan", handler: stressScanRouter },
+    { path: "/stress-progress", handler: stressProgressRouter },
     { path: "/books", handler: bookRouter },
     { path: "/match-route", handler: matchRouteRouter },
 ];
