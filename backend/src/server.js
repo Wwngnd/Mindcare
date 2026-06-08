@@ -15,19 +15,43 @@ const app = express();
 const PORT = process.env.PORT || 9000;
 const HOST = process.env.HOST || "localhost";
 
+const parseAllowedOrigins = () => {
+    const configuredOrigins = process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || "";
+    const vercelOrigin = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "";
+
+    return [
+        configuredOrigins,
+        vercelOrigin,
+        "https://mindcare-amber.vercel.app",
+    ].join(",")
+        .split(",")
+        .map((origin) => origin.trim().replace(/\/+$/, ""))
+        .filter(Boolean);
+};
+
 async function init() {
+    const allowedOrigins = parseAllowedOrigins();
+    const allowedOriginPatterns = [
+        /^https:\/\/.*\.netlify\.app$/,
+        /^https:\/\/capstone-project-mindcare[\w-]*\.vercel\.app$/,
+        /^http:\/\/localhost:\d+$/,
+        /^http:\/\/127\.0\.0\.1:\d+$/,
+    ];
+
     app.use(cors({
         credentials: true,
         origin: function (origin, callback) {
-            const allowed = [
-                /^https:\/\/.*\.netlify\.app$/,
-                /^https:\/\/capstone-project-mindcare[\w-]*\.vercel\.app$/,
-                /^http:\/\/localhost:\d+$/,
-            ];
-            if (!origin || allowed.some(pattern => pattern.test(origin))) {
+            const normalizedOrigin = origin?.replace(/\/+$/, "");
+            const isAllowedOrigin = !normalizedOrigin ||
+                allowedOrigins.includes(normalizedOrigin) ||
+                allowedOriginPatterns.some((pattern) => pattern.test(normalizedOrigin));
+
+            if (isAllowedOrigin) {
                 callback(null, true);
             } else {
-                callback(new Error('Not allowed by CORS'));
+                const corsError = new Error("Origin tidak diizinkan oleh CORS.");
+                corsError.statusCode = 403;
+                callback(corsError);
             }
         }
     }));
